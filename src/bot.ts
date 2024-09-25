@@ -7,45 +7,65 @@ import WalletManager from './services/wallet_manager'; // Импорт WalletMan
 // Загрузка переменных среды из файла .env
 dotenv.config();
 
+// Константы для выбора меню
+const MENU_OPTIONS = {
+  MANAGE_WALLETS: 1,
+  BUY_COINS: 2,
+  SELL_COINS: 3,
+  BUY_AND_SELL_COINS: 4,
+  CLOSE_WALLETS: 5,
+  EXIT: 6,
+};
+
 // Основное меню
 async function mainMenu(): Promise<void> {
-  while (true) {
-    console.log(`
-    Пожалуйста, выберите действие (введите номер и нажмите Enter):
-    1. Создать или использовать существующие кошельки
-    2. Купить монеты
-    3. Продать монеты
-    4. Купить и продать монеты
-    5. Закрыть кошельки
-    6. Выйти
-    `);
+  try {
+    while (true) {
+      console.log(`
+      Пожалуйста, выберите действие (введите номер и нажмите Enter):
+      ${MENU_OPTIONS.MANAGE_WALLETS}. Создать или использовать существующие кошельки
+      ${MENU_OPTIONS.BUY_COINS}. Купить монеты
+      ${MENU_OPTIONS.SELL_COINS}. Продать монеты
+      ${MENU_OPTIONS.BUY_AND_SELL_COINS}. Купить и продать монеты
+      ${MENU_OPTIONS.CLOSE_WALLETS}. Закрыть кошельки
+      ${MENU_OPTIONS.EXIT}. Выйти
+      `);
 
-    const choice = readlineSync.questionInt('Ваш выбор: ');
+      const choice = readlineSync.questionInt('Ваш выбор: ');
 
-    switch (choice) {
-      case 1:
-        await WalletManager.manageWallets(); // Вызов метода управления кошельками
-        break;
-      case 2:
-        buyCoins();
-        break;
-      case 3:
-        sellCoins();
-        break;
-      case 4:
-        buyAndSellCoins();
-        break;
-      case 5:
-        closeWallets();
-        break;
-      case 6:
-        console.log('До свидания!');
-        process.exit();
-        break;
-      default:
-        console.log('Неизвестное действие. Пожалуйста, выберите снова.');
+      switch (choice) {
+        case MENU_OPTIONS.MANAGE_WALLETS:
+          await WalletManager.manageWallets();
+          break;
+        case MENU_OPTIONS.BUY_COINS:
+          await buyCoins();
+          break;
+        case MENU_OPTIONS.SELL_COINS:
+          await sellCoins();
+          break;
+        case MENU_OPTIONS.BUY_AND_SELL_COINS:
+          await buyAndSellCoins();
+          break;
+        case MENU_OPTIONS.CLOSE_WALLETS:
+          await closeWallets();
+          break;
+        case MENU_OPTIONS.EXIT:
+          const exitConfirmation = readlineSync
+            .question('Вы уверены, что хотите выйти? (да/нет): ')
+            .toLowerCase();
+          if (['да', 'д', 'y', 'yes', 'ya'].includes(exitConfirmation)) {
+            console.log('До свидания!');
+            process.exit();
+          }
+          break;
+        default:
+          console.log('Неизвестное действие. Пожалуйста, выберите снова.');
+      }
     }
+  } catch (error) {
+    console.error('Произошла ошибка в главном меню:', error);
   }
+  
 }
 
 // Вспомогательные функции (заглушки)
