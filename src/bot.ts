@@ -8,7 +8,7 @@ import WalletManager from './services/wallet_manager'; // Импорт WalletMan
 dotenv.config();
 
 // Основное меню
-async function mainMenu(): Promise<void> { // Добавлено async перед function
+async function mainMenu(): Promise<void> {
   while (true) {
     console.log(`
     Пожалуйста, выберите действие (введите номер и нажмите Enter):
@@ -66,4 +66,4 @@ function closeWallets(): void {
 }
 
 // Запуск главного меню
-mainMenu(); // Теперь mainMenu асинхронная функция и может использовать await
+mainMenu();

@@ -1,5 +1,3 @@
-// src/services/wallet_manager.ts
-
 import { Keypair } from '@solana/web3.js';
 import fs from 'fs';
 import readlineSync from 'readline-sync';
@@ -10,12 +8,13 @@ import path from 'path';
 dotenv.config();
 
 class WalletManager {
-  private static BUNDLE_WALLET_PRIVATE_KEYS: string | undefined = process.env.BUNDLE_WALLET_PRIVATE_KEYS;
+  private static envPath = path.resolve(__dirname, '../../.env');
 
   // Метод для управления кошельками
   public static async manageWallets(): Promise<void> {
-    if (this.BUNDLE_WALLET_PRIVATE_KEYS && this.BUNDLE_WALLET_PRIVATE_KEYS.trim() !== '') {
-      const existingKeys = this.BUNDLE_WALLET_PRIVATE_KEYS.split(',').map(key => key.trim().replace(/^"|"$/g, ''));
+    const BUNDLE_WALLET_PRIVATE_KEYS = process.env.BUNDLE_WALLET_PRIVATE_KEYS; // Переменную считываем один раз в начале
+    if (BUNDLE_WALLET_PRIVATE_KEYS && BUNDLE_WALLET_PRIVATE_KEYS.trim() !== '') {
+      const existingKeys = BUNDLE_WALLET_PRIVATE_KEYS.split(',').map(key => key.trim().replace(/^"|"$/g, ''));
       const existingKeysCount = existingKeys.length;
 
       if (existingKeysCount > 0) {
@@ -69,36 +68,35 @@ class WalletManager {
     }
 
     this.updateEnvFile(newPrivateKeys.join(','));
-
     console.log('Новые приватные ключи были сгенерированы и сохранены в .env файл.');
+
+    // Обновляем значение переменной в process.env
+    this.updateProcessEnvVariable('BUNDLE_WALLET_PRIVATE_KEYS', newPrivateKeys.join(','));
   }
 
   // Метод для обновления файла .env
   private static updateEnvFile(newKeys: string): void {
-    const envPath = path.resolve(__dirname, '../../.env');
-    let envFileContent = fs.readFileSync(envPath, 'utf8');
+    let envFileContent = fs.readFileSync(this.envPath, 'utf8');
 
-    if (this.BUNDLE_WALLET_PRIVATE_KEYS) {
-      // Комментируем старую строку с ключами
-      const regex = /BUNDLE_WALLET_PRIVATE_KEYS=.*(\r?\n)?/g;
-      envFileContent = envFileContent.replace(
-        regex,
-        `# BUNDLE_WALLET_PRIVATE_KEYS=${this.BUNDLE_WALLET_PRIVATE_KEYS}\n`
-      );
+    // Регулярное выражение для поиска активной строки
+    const regex = /^(BUNDLE_WALLET_PRIVATE_KEYS=.*)$/gm;
+
+    if (regex.test(envFileContent)) {
+      // Комментируем старую строку
+      envFileContent = envFileContent.replace(regex, `# $1`);
     }
 
     // Добавляем новую строку с ключами
-    if (envFileContent.includes('BUNDLE_WALLET_PRIVATE_KEYS=""')) {
-      envFileContent = envFileContent.replace(
-        `BUNDLE_WALLET_PRIVATE_KEYS=""`,
-        `BUNDLE_WALLET_PRIVATE_KEYS="${newKeys}"`
-      );
-    } else {
-      envFileContent += `\nBUNDLE_WALLET_PRIVATE_KEYS="${newKeys}"`;
-    }
+    envFileContent += `\nBUNDLE_WALLET_PRIVATE_KEYS="${newKeys}"`;
 
     // Записываем обновленный файл .env
-    fs.writeFileSync(envPath, envFileContent);
+    fs.writeFileSync(this.envPath, envFileContent);
+  }
+
+  // Метод для обновления переменной в process.env
+  private static updateProcessEnvVariable(key: string, value: string): void {
+    process.env[key] = value;
+    console.log(`Переменная ${key} была обновлена в process.env: ${process.env[key]}`);
   }
 }
 
