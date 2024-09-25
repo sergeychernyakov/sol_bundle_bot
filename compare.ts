@@ -10,11 +10,12 @@ dotenv.config();
 // Константы для выбора меню
 const MENU_OPTIONS = {
   MANAGE_WALLETS: 1,
-  BUY_COINS: 2,
-  SELL_COINS: 3,
-  BUY_AND_SELL_COINS: 4,
-  CLOSE_WALLETS: 5,
-  EXIT: 6,
+  TOP_UP_WALLETS: 2, // Пополнение кошельков теперь на втором месте
+  BUY_COINS: 3,
+  SELL_COINS: 4,
+  BUY_AND_SELL_COINS: 5,
+  CLOSE_WALLETS: 6,
+  EXIT: 7,
 };
 
 // Основное меню
@@ -24,6 +25,7 @@ async function mainMenu(): Promise<void> {
       console.log(`
       Пожалуйста, выберите действие (введите номер и нажмите Enter):
       ${MENU_OPTIONS.MANAGE_WALLETS}. Создать или использовать существующие кошельки
+      ${MENU_OPTIONS.TOP_UP_WALLETS}. Пополнить кошельки
       ${MENU_OPTIONS.BUY_COINS}. Купить монеты
       ${MENU_OPTIONS.SELL_COINS}. Продать монеты
       ${MENU_OPTIONS.BUY_AND_SELL_COINS}. Купить и продать монеты
@@ -37,23 +39,26 @@ async function mainMenu(): Promise<void> {
         case MENU_OPTIONS.MANAGE_WALLETS:
           await WalletManager.manageWallets();
           break;
+        case MENU_OPTIONS.TOP_UP_WALLETS:
+          await topUpWallets(); // Вызов функции пополнения кошельков
+          break;
         case MENU_OPTIONS.BUY_COINS:
-          await buyCoins();
+          await buyCoins(); // Вызов функции покупки монет
           break;
         case MENU_OPTIONS.SELL_COINS:
-          await sellCoins();
+          await sellCoins(); // Вызов функции продажи монет
           break;
         case MENU_OPTIONS.BUY_AND_SELL_COINS:
-          await buyAndSellCoins();
+          await buyAndSellCoins(); // Вызов функции покупки и продажи монет
           break;
         case MENU_OPTIONS.CLOSE_WALLETS:
-          await closeWallets();
+          await closeWallets(); // Вызов функции закрытия кошельков
           break;
         case MENU_OPTIONS.EXIT:
           const exitConfirmation = readlineSync
             .question('Вы уверены, что хотите выйти? (да/нет): ')
             .toLowerCase();
-          if (['да', 'д'].includes(exitConfirmation)) {
+          if (['да', 'д', 'y', 'yes', 'ya'].includes(exitConfirmation)) {
             console.log('До свидания!');
             process.exit();
           }
@@ -65,23 +70,26 @@ async function mainMenu(): Promise<void> {
   } catch (error) {
     console.error('Произошла ошибка в главном меню:', error);
   }
-  
 }
 
-// Вспомогательные функции (заглушки)
-function buyCoins(): void {
+// Вспомогательные функции (асинхронные заглушки)
+async function buyCoins(): Promise<void> {
   console.log('Функция покупки монет пока не реализована.');
 }
 
-function sellCoins(): void {
+async function sellCoins(): Promise<void> {
   console.log('Функция продажи монет пока не реализована.');
 }
 
-function buyAndSellCoins(): void {
+async function buyAndSellCoins(): Promise<void> {
   console.log('Функция покупки и продажи монет пока не реализована.');
 }
 
-function closeWallets(): void {
+async function topUpWallets(): Promise<void> {
+  console.log('Функция пополнения кошельков пока не реализована.');
+}
+
+async function closeWallets(): Promise<void> {
   console.log('Функция закрытия кошельков пока не реализована.');
 }
 
