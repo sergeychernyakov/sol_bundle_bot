@@ -3,9 +3,14 @@
 import readlineSync from 'readline-sync';
 import dotenv from 'dotenv';
 import WalletManager from './services/wallet_manager'; // Импорт WalletManager
+import WalletTopUp from './services/wallet_top_up'; // Импорт WalletTopUp
+import { Connection, clusterApiUrl } from '@solana/web3.js'; // Импорт необходимых компонентов Solana Web3.js
 
 // Загрузка переменных среды из файла .env
 dotenv.config();
+
+// Создание соединения с сетью Solana
+const connection = new Connection(clusterApiUrl('mainnet-beta'), 'confirmed'); // Используем основную сеть
 
 // Константы для выбора меню
 const MENU_OPTIONS = {
@@ -21,14 +26,19 @@ const MENU_OPTIONS = {
 // Основное меню
 async function mainMenu(): Promise<void> {
   try {
+    const walletTopUp = new WalletTopUp(connection); // Создание экземпляра WalletTopUp
+
     while (true) {
+      WalletManager.displayMasterWallet(); // Вызов метода для отображения мастер-кошелька
+
       console.log(`
       Пожалуйста, выберите действие (введите номер и нажмите Enter):
-      ${MENU_OPTIONS.MANAGE_WALLETS}. Создать или использовать существующие кошельки
+
+      ${MENU_OPTIONS.MANAGE_WALLETS}. Создать кошельки
       ${MENU_OPTIONS.TOP_UP_WALLETS}. Пополнить кошельки
-      ${MENU_OPTIONS.BUY_COINS}. Купить монеты
-      ${MENU_OPTIONS.SELL_COINS}. Продать монеты
-      ${MENU_OPTIONS.BUY_AND_SELL_COINS}. Купить и продать монеты
+      ${MENU_OPTIONS.BUY_COINS}. Купить монеты (бандл)
+      ${MENU_OPTIONS.SELL_COINS}. Продать монеты (бандл)
+      ${MENU_OPTIONS.BUY_AND_SELL_COINS}. Купить и продать монеты (бандл)
       ${MENU_OPTIONS.CLOSE_WALLETS}. Закрыть кошельки
       ${MENU_OPTIONS.EXIT}. Выйти
       `);
@@ -40,7 +50,7 @@ async function mainMenu(): Promise<void> {
           await WalletManager.manageWallets();
           break;
         case MENU_OPTIONS.TOP_UP_WALLETS:
-          await topUpWallets(); // Вызов функции пополнения кошельков
+          await walletTopUp.topUpWallets(); // Вызов метода popолнения кошельков
           break;
         case MENU_OPTIONS.BUY_COINS:
           await buyCoins(); // Вызов функции покупки монет
@@ -83,10 +93,6 @@ async function sellCoins(): Promise<void> {
 
 async function buyAndSellCoins(): Promise<void> {
   console.log('Функция покупки и продажи монет пока не реализована.');
-}
-
-async function topUpWallets(): Promise<void> {
-  console.log('Функция пополнения кошельков пока не реализована.');
 }
 
 async function closeWallets(): Promise<void> {
