@@ -29,7 +29,7 @@ async function mainMenu(): Promise<void> {
     const walletTopUp = new WalletTopUp(connection); // Создание экземпляра WalletTopUp
 
     while (true) {
-      WalletManager.displayMasterWallet(); // Вызов метода для отображения мастер-кошелька
+      await WalletManager.displayMasterWallet(); // Вызов метода для отображения мастер-кошелька
 
       console.log(`
       Пожалуйста, выберите действие (введите номер и нажмите Enter):

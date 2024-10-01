@@ -1,5 +1,6 @@
 // src/services/wallet_manager.ts
 
+import { Metaplex } from '@metaplex-foundation/js';
 import { Keypair, Connection, PublicKey, LAMPORTS_PER_SOL } from '@solana/web3.js';
 import fs from 'fs/promises';
 import readlineSync from 'readline-sync';
@@ -15,6 +16,7 @@ class WalletManager {
   private static DEFAULT_WALLET_COUNT = 5;
   private static YES_ANSWERS = ['да', 'д', 'y', 'yes', 'ya'];
   private static connection = new Connection('https://api.mainnet-beta.solana.com', 'confirmed'); // Подключение к основной сети
+  private static metaplex = Metaplex.make(WalletManager.connection); // Инициализируем Metaplex
 
   // Метод для управления кошельками
   public static async manageWallets(): Promise<void> {
@@ -100,29 +102,35 @@ class WalletManager {
     });
   }
 
-  // Метод для отображения адреса мастер-кошелька
-  public static async displayMasterWallet(): Promise<void> { // добавлено async
+  public static async displayMasterWallet(): Promise<void> {
     const masterWalletPrivateKey = this.getEnvVariable('MASTER_WALLET_PRIVATE_KEY');
-  
+    const tokenMintAddress = this.getEnvVariable('TOKEN_MINT_ADDRESS');
+    
     if (!masterWalletPrivateKey) {
       console.log('Приватный ключ MASTER_WALLET_PRIVATE_KEY не задан в .env файле.');
       return;
     }
-
+  
     if (masterWalletPrivateKey.length !== 88) {
       throw new Error(`Invalid secret key length: ${masterWalletPrivateKey.length} bytes`);
     }
-
+  
     try {
       // Декодирование ключа из base58
       const decodedMasterWalletPrivateKey = bs58.decode(masterWalletPrivateKey);
       const masterWallet = Keypair.fromSecretKey(decodedMasterWalletPrivateKey);
       const masterWalletPublicKey = masterWallet.publicKey.toString();
-
+  
       console.log(`MASTER_WALLET: https://explorer.solana.com/address/${masterWalletPublicKey}`);
-
+  
       // Используем существующий метод для получения баланса
       await this.getWalletBalance(masterWalletPublicKey);
+      if (tokenMintAddress) {
+        await this.getTokenBalance(new PublicKey(masterWalletPublicKey), tokenMintAddress);
+      } else {
+        console.log('Адрес токена не найден в переменных окружения.');
+      }
+
     } catch (error) {
       console.error('Ошибка при создании MASTER_WALLET из приватного ключа:', error);
     }
@@ -183,27 +191,38 @@ class WalletManager {
     process.env[key] = value;
   }
 
+  // Метод для получения метаданных токена
+  private static async getTokenMetadata(tokenMintAddress: string): Promise<string | null> {
+    try {
+      const mintPublicKey = new PublicKey(tokenMintAddress);
+
+      const metadata = await WalletManager.metaplex.nfts().findByMint({ mintAddress: mintPublicKey });
+
+      return metadata.name; // Возвращаем имя токена
+    } catch (error) {
+      console.error('Ошибка при получении метаданных токена:', error);
+      return null;
+    }
+  }
+
   // Метод для получения баланса SOL и торгового токена
-  public static async getWalletBalance(walletAddress: string, tokenMintAddress?: string): Promise<void> {
+  public static async getWalletBalance(walletAddress: string): Promise<void> {
     try {
       const publicKey = new PublicKey(walletAddress);
+
+      // Добавим отладочный вывод перед получением баланса
+      console.log(`Попытка получить баланс для кошелька: ${walletAddress}`);
 
       // Получаем баланс в SOL
       const solBalance = await this.connection.getBalance(publicKey);
       console.log(`Баланс SOL: ${solBalance / LAMPORTS_PER_SOL} SOL`);
-
-      if (tokenMintAddress) {
-        // Получаем баланс торгового токена, если указан
-        const tokenBalance = await this.getTokenBalance(publicKey, tokenMintAddress);
-        console.log(`Баланс токена: ${tokenBalance} единиц`);
-      }
     } catch (error) {
-      console.error('Ошибка при получении баланса кошелька:', error);
+      console.error(`Ошибка при получении баланса кошелька ${walletAddress}:`, error);
     }
   }
 
-  // Метод для получения баланса торгового токена
-  private static async getTokenBalance(walletPublicKey: PublicKey, tokenMintAddress: string): Promise<number> {
+  // Метод для получения баланса торгового токена с именем токена
+  private static async getTokenBalance(walletPublicKey: PublicKey, tokenMintAddress: string): Promise<void> {
     try {
       const tokenPublicKey = new PublicKey(tokenMintAddress);
 
@@ -211,23 +230,25 @@ class WalletManager {
       const tokenAccounts = await this.connection.getTokenAccountsByOwner(walletPublicKey, {
         mint: tokenPublicKey,
       });
-    
+
+      // Получаем имя токена
+      const tokenName = await this.getTokenMetadata(tokenMintAddress) || 'Неизвестный токен';
+
       // Суммируем баланс по всем аккаунтам этого токена
       let totalBalance = 0;
       for (const tokenAccount of tokenAccounts.value) {
         const accountInfo = await this.connection.getParsedAccountInfo(tokenAccount.pubkey);
-    
+
         // Проверяем, что данные содержат информацию о токене
         if (accountInfo.value && 'parsed' in accountInfo.value.data) {
           const balance = accountInfo.value.data.parsed.info.tokenAmount.uiAmount;
           totalBalance += balance || 0;
         }
       }
-    
-      return totalBalance;
+
+      console.log(`Баланс ${tokenName}: ${totalBalance} единиц`);
     } catch (error) {
       console.error('Ошибка при получении баланса токена:', error);
-      return 0;
     }
   }
 }
