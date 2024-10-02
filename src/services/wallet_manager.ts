@@ -6,24 +6,35 @@ import fs from 'fs/promises';
 import readlineSync from 'readline-sync';
 import dotenv from 'dotenv';
 import path from 'path';
-import bs58 from 'bs58'; 
+import bs58 from 'bs58';
 
 // Загрузка переменных среды из файла .env
 dotenv.config();
 
 class WalletManager {
-  private static envPath = path.resolve(__dirname, '../../.env');
-  private static DEFAULT_WALLET_COUNT = 5;
-  private static YES_ANSWERS = ['да', 'д', 'y', 'yes', 'ya'];
-  private static connection = new Connection('https://api.mainnet-beta.solana.com', 'confirmed'); // Подключение к основной сети
-  private static metaplex = Metaplex.make(WalletManager.connection); // Инициализируем Metaplex
+  private envPath = path.resolve(__dirname, '../../.env');
+  private DEFAULT_WALLET_COUNT = 5;
+  private YES_ANSWERS = ['да', 'д', 'y', 'yes', 'ya'];
+  private connection: Connection;
+  private metaplex: Metaplex;
+
+  constructor(connection: Connection) {
+    this.connection = connection;
+    this.metaplex = new Metaplex(connection);
+  }
+
+  // Метод для получения значения переменной окружения
+  public getEnvVariable(variableName: string): string | null {
+    const value = process.env[variableName];
+    return value && value.trim() !== '' ? value : null;
+  }
 
   // Метод для управления кошельками
-  public static async manageWallets(): Promise<void> {
+  public async manageWallets(): Promise<void> {
     const BUNDLE_WALLET_PRIVATE_KEYS = this.getEnvVariable('BUNDLE_WALLET_PRIVATE_KEYS');
     if (BUNDLE_WALLET_PRIVATE_KEYS) {
       const validWallets = this.getValidWalletsKeys();
-      
+
       if (validWallets.length > 0) {
         this.displayWalletAddresses(validWallets.map(wallet => bs58.encode(wallet.secretKey)));
 
@@ -32,7 +43,7 @@ class WalletManager {
           .toLowerCase();
 
         if (this.YES_ANSWERS.includes(useExistingKeys)) {
-          console.log('Используем существующие приватные ключи.');
+          console.log('Используем существующие приватные ключи.\n');
           return;
         }
       } else {
@@ -45,14 +56,8 @@ class WalletManager {
     await this.createNewWallets();
   }
 
-  // Метод для получения значения переменной окружения
-  public static getEnvVariable(variableName: string): string | null {
-    const value = process.env[variableName];
-    return value && value.trim() !== '' ? value : null;
-  }
-
   // Метод для получения валидных кошельков из переменной окружения
-  public static getValidWalletsKeys(): Keypair[] {
+  public getValidWalletsKeys(): Keypair[] {
     const BUNDLE_WALLET_PRIVATE_KEYS = this.getEnvVariable('BUNDLE_WALLET_PRIVATE_KEYS');
     if (BUNDLE_WALLET_PRIVATE_KEYS) {
       const existingKeys = this.parsePrivateKeys(BUNDLE_WALLET_PRIVATE_KEYS);
@@ -65,14 +70,14 @@ class WalletManager {
   }
 
   // Метод для разбора приватных ключей
-  private static parsePrivateKeys(keys: string): string[] {
+  private parsePrivateKeys(keys: string): string[] {
     return keys.split(',')
       .map(key => key.trim().replace(/^"|"$/g, ''))
       .filter(key => key.length > 0);
   }
 
   // Метод для проверки валидности ключей
-  private static getValidKeys(keys: string[]): string[] {
+  private getValidKeys(keys: string[]): string[] {
     const validKeys = keys.filter(key => {
       try {
         // Используем bs58 декодирование для проверки ключа
@@ -88,7 +93,7 @@ class WalletManager {
   }
 
   // Метод для отображения адресов кошельков
-  private static displayWalletAddresses(keys: string[]): void {
+  private displayWalletAddresses(keys: string[]): void {
     const walletAddresses = keys.map(key => {
       // Декодируем ключи из base58
       const wallet = Keypair.fromSecretKey(bs58.decode(key));
@@ -102,27 +107,28 @@ class WalletManager {
     });
   }
 
-  public static async displayMasterWallet(): Promise<void> {
+  // Метод для отображения адреса мастер-кошелька
+  public async displayMasterWallet(): Promise<void> {
     const masterWalletPrivateKey = this.getEnvVariable('MASTER_WALLET_PRIVATE_KEY');
     const tokenMintAddress = this.getEnvVariable('TOKEN_MINT_ADDRESS');
-    
+
     if (!masterWalletPrivateKey) {
       console.log('Приватный ключ MASTER_WALLET_PRIVATE_KEY не задан в .env файле.');
       return;
     }
-  
+
     if (masterWalletPrivateKey.length !== 88) {
       throw new Error(`Invalid secret key length: ${masterWalletPrivateKey.length} bytes`);
     }
-  
+
     try {
       // Декодирование ключа из base58
       const decodedMasterWalletPrivateKey = bs58.decode(masterWalletPrivateKey);
       const masterWallet = Keypair.fromSecretKey(decodedMasterWalletPrivateKey);
       const masterWalletPublicKey = masterWallet.publicKey.toString();
-  
+
       console.log(`MASTER_WALLET: https://explorer.solana.com/address/${masterWalletPublicKey}`);
-  
+
       // Используем существующий метод для получения баланса
       await this.getWalletBalance(masterWalletPublicKey);
       if (tokenMintAddress) {
@@ -137,7 +143,7 @@ class WalletManager {
   }
 
   // Метод для создания новых кошельков
-  private static async createNewWallets(): Promise<void> {
+  private async createNewWallets(): Promise<void> {
     const walletCountInput = readlineSync.question(`Сколько кошельков создать? (по умолчанию ${this.DEFAULT_WALLET_COUNT}): `);
     let walletCount = walletCountInput ? parseInt(walletCountInput) : this.DEFAULT_WALLET_COUNT;
 
@@ -164,7 +170,7 @@ class WalletManager {
   }
 
   // Метод для обновления файла .env
-  private static async updateEnvFile(newKeys: string): Promise<void> {
+  private async updateEnvFile(newKeys: string): Promise<void> {
     try {
       let envFileContent = await fs.readFile(this.envPath, 'utf8');
 
@@ -187,16 +193,16 @@ class WalletManager {
   }
 
   // Метод для обновления переменной в process.env
-  private static updateProcessEnvVariable(key: string, value: string): void {
+  private updateProcessEnvVariable(key: string, value: string): void {
     process.env[key] = value;
   }
 
   // Метод для получения метаданных токена
-  private static async getTokenMetadata(tokenMintAddress: string): Promise<string | null> {
+  private async getTokenMetadata(tokenMintAddress: string): Promise<string | null> {
     try {
       const mintPublicKey = new PublicKey(tokenMintAddress);
 
-      const metadata = await WalletManager.metaplex.nfts().findByMint({ mintAddress: mintPublicKey });
+      const metadata = await this.metaplex.nfts().findByMint({ mintAddress: mintPublicKey });
 
       return metadata.name; // Возвращаем имя токена
     } catch (error) {
@@ -206,23 +212,21 @@ class WalletManager {
   }
 
   // Метод для получения баланса SOL и торгового токена
-  public static async getWalletBalance(walletAddress: string): Promise<void> {
+  public async getWalletBalance(walletAddress: string): Promise<void> {
     try {
       const publicKey = new PublicKey(walletAddress);
 
-      // Добавим отладочный вывод перед получением баланса
-      console.log(`Попытка получить баланс для кошелька: ${walletAddress}`);
-
       // Получаем баланс в SOL
       const solBalance = await this.connection.getBalance(publicKey);
-      console.log(`Баланс SOL: ${solBalance / LAMPORTS_PER_SOL} SOL`);
-    } catch (error) {
-      console.error(`Ошибка при получении баланса кошелька ${walletAddress}:`, error);
+      console.log(`Баланс SOL: ${solBalance / LAMPORTS_PER_SOL}`);
+    } catch (error: any) {
+      console.error(`Ошибка при получении баланса кошелька ${walletAddress}: ${error.message}`);
+      console.error('Детали ошибки:', error);
     }
   }
 
   // Метод для получения баланса торгового токена с именем токена
-  private static async getTokenBalance(walletPublicKey: PublicKey, tokenMintAddress: string): Promise<void> {
+  private async getTokenBalance(walletPublicKey: PublicKey, tokenMintAddress: string): Promise<void> {
     try {
       const tokenPublicKey = new PublicKey(tokenMintAddress);
 
@@ -246,7 +250,7 @@ class WalletManager {
         }
       }
 
-      console.log(`Баланс ${tokenName}: ${totalBalance} единиц`);
+      console.log(`Баланс ${tokenName}: ${totalBalance}`);
     } catch (error) {
       console.error('Ошибка при получении баланса токена:', error);
     }

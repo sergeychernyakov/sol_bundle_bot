@@ -4,7 +4,7 @@
   "description": "",
   "main": "src/bot.ts",
   "scripts": {
-    "start": "ts-node src/bot.ts",
+    "start": "NODE_NO_WARNINGS=1 ts-node src/bot.ts",
     "build": "tsc",
     "serve": "node dist/bot.js",
     "test": "echo \"Error: no test specified\" && exit 1"

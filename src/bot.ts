@@ -4,18 +4,16 @@ import readlineSync from 'readline-sync';
 import dotenv from 'dotenv';
 import WalletManager from './services/wallet_manager'; // Импорт WalletManager
 import WalletTopUp from './services/wallet_top_up'; // Импорт WalletTopUp
+import WalletCollector from './services/wallet_collector'; // Импорт WalletCollector
 import { Connection, clusterApiUrl } from '@solana/web3.js'; // Импорт необходимых компонентов Solana Web3.js
 
 // Загрузка переменных среды из файла .env
 dotenv.config();
 
-// Создание соединения с сетью Solana
-const connection = new Connection(clusterApiUrl('mainnet-beta'), 'confirmed'); // Используем основную сеть
-
 // Константы для выбора меню
 const MENU_OPTIONS = {
   MANAGE_WALLETS: 1,
-  TOP_UP_WALLETS: 2, // Пополнение кошельков теперь на втором месте
+  TOP_UP_WALLETS: 2,
   BUY_COINS: 3,
   SELL_COINS: 4,
   BUY_AND_SELL_COINS: 5,
@@ -26,10 +24,22 @@ const MENU_OPTIONS = {
 // Основное меню
 async function mainMenu(): Promise<void> {
   try {
-    const walletTopUp = new WalletTopUp(connection); // Создание экземпляра WalletTopUp
 
     while (true) {
-      await WalletManager.displayMasterWallet(); // Вызов метода для отображения мастер-кошелька
+
+      // Загрузка переменных среды из файла .env
+      dotenv.config();
+
+      // Создание соединения с сетью Solana
+      const connection = new Connection(clusterApiUrl('mainnet-beta'), 'confirmed'); // Используем основную сеть
+
+      // Создаем экземпляр WalletManager и передаем соединение
+      const walletManager = new WalletManager(connection);
+
+      const walletTopUp = new WalletTopUp(connection, walletManager); // Передаем walletManager в WalletTopUp
+      const walletCollector = new WalletCollector(connection, walletManager); // Создаем экземпляр WalletCollector
+
+      await walletManager.displayMasterWallet(); // Используем экземпляр walletManager
 
       console.log(`
       Пожалуйста, выберите действие (введите номер и нажмите Enter):
@@ -39,7 +49,7 @@ async function mainMenu(): Promise<void> {
       ${MENU_OPTIONS.BUY_COINS}. Купить монеты (бандл)
       ${MENU_OPTIONS.SELL_COINS}. Продать монеты (бандл)
       ${MENU_OPTIONS.BUY_AND_SELL_COINS}. Купить и продать монеты (бандл)
-      ${MENU_OPTIONS.CLOSE_WALLETS}. Закрыть кошельки
+      ${MENU_OPTIONS.CLOSE_WALLETS}. Собрать SOL с кошельков
       ${MENU_OPTIONS.EXIT}. Выйти
       `);
 
@@ -47,22 +57,22 @@ async function mainMenu(): Promise<void> {
 
       switch (choice) {
         case MENU_OPTIONS.MANAGE_WALLETS:
-          await WalletManager.manageWallets();
+          await walletManager.manageWallets();
           break;
         case MENU_OPTIONS.TOP_UP_WALLETS:
-          await walletTopUp.topUpWallets(); // Вызов метода popолнения кошельков
+          await walletTopUp.topUpWallets();
           break;
         case MENU_OPTIONS.BUY_COINS:
-          await buyCoins(); // Вызов функции покупки монет
+          await buyCoins();
           break;
         case MENU_OPTIONS.SELL_COINS:
-          await sellCoins(); // Вызов функции продажи монет
+          await sellCoins();
           break;
         case MENU_OPTIONS.BUY_AND_SELL_COINS:
-          await buyAndSellCoins(); // Вызов функции покупки и продажи монет
+          await buyAndSellCoins();
           break;
         case MENU_OPTIONS.CLOSE_WALLETS:
-          await closeWallets(); // Вызов функции закрытия кошельков
+          await walletCollector.closeWallets();
           break;
         case MENU_OPTIONS.EXIT:
           const exitConfirmation = readlineSync
@@ -93,10 +103,6 @@ async function sellCoins(): Promise<void> {
 
 async function buyAndSellCoins(): Promise<void> {
   console.log('Функция покупки и продажи монет пока не реализована.');
-}
-
-async function closeWallets(): Promise<void> {
-  console.log('Функция закрытия кошельков пока не реализована.');
 }
 
 // Запуск главного меню

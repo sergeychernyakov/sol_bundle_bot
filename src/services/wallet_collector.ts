@@ -23,7 +23,7 @@ class WalletCollector {
         return balanceLamports;
       } catch (error) {
         attempts++;
-        console.error(`Ошибка при получении баланса кошелька ${publicKey.toString()} (попытка ${attempts}):`, error);
+        // console.error(`Ошибка при получении баланса кошелька ${publicKey.toString()} (попытка ${attempts}):`, error);
         if (attempts >= maxRetries) {
           throw error;
         }
