@@ -26,6 +26,7 @@ class WalletTopUp {
           const retryAfter = delay * attempts;
           console.error(`Превышен лимит запросов. Повтор через ${retryAfter} мс...`);
           await new Promise(res => setTimeout(res, retryAfter));
+          delay *= 2; // Увеличиваем задержку экспоненциально
         } else {
           // console.error(`Ошибка при получении blockhash (попытка ${attempts}):`);
           if (attempts >= maxRetries) {
@@ -108,7 +109,7 @@ class WalletTopUp {
         console.log(`Кошелек ${wallet.publicKey.toString()} пополнен на ${solAmount} SOL. Транзакция: https://explorer.solana.com/tx/${signature}`);
 
         // Добавляем задержку между транзакциями
-        await new Promise(res => setTimeout(res, 500)); // Задержка в 500 мс
+        await new Promise(res => setTimeout(res, 5000));
 
       } catch (error) {
         console.error(`Ошибка при пополнении кошелька ${wallet.publicKey.toString()}:`, error);

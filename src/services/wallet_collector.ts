@@ -61,6 +61,10 @@ class WalletCollector {
 
       console.log(`Общий баланс всех кошельков: ${totalBalance} SOL`);
 
+      if (totalBalance === 0) {
+        return;
+      }
+
       // Спрашиваем подтверждение на сбор всех SOL
       const collectConfirmation = readlineSync.question(
         'Вы хотите собрать все SOL на мастер-кошелек? (да/нет): '
