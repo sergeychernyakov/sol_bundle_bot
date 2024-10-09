@@ -5,7 +5,6 @@ import {
   PublicKey,
   Transaction,
   Signer,
-  AccountInfo,
   Keypair,
 } from '@solana/web3.js';
 import WalletManager from './wallet_manager';
@@ -360,30 +359,30 @@ class BuyCoinsService {
       console.log('Starting createSwapTransaction method.');
       const transaction: Transaction = new Transaction();
       const signers: Signer[] = [];
-
+  
       // Вычисляем количество токенов CHEESE в минимальных единицах (учитывая decimals)
       const amountOutUnits: BN = new BN(amountOut * Math.pow(10, poolKeys.quoteDecimals));
       console.log(`Desired amount out (CHEESE): ${amountOut}`);
       console.log(`Amount out in token units: ${amountOutUnits.toString()}`);
-
+  
       // Получаем связанные аккаунты токенов
       console.log('Getting associated token addresses...');
       const userBaseTokenAccount: PublicKey = await getAssociatedTokenAddress(
         poolKeys.baseMint,
         userPublicKey
       );
-
+  
       const userQuoteTokenAccount: PublicKey = await getAssociatedTokenAddress(
         poolKeys.quoteMint,
         userPublicKey
       );
-
+  
       console.log('User base token account:', userBaseTokenAccount.toString());
       console.log('User quote token account:', userQuoteTokenAccount.toString());
-
+  
       // Проверяем существование связанных аккаунтов токенов и создаём их при необходимости
       console.log('Checking if token accounts exist...');
-      const userBaseTokenAccountInfo: AccountInfo<Buffer> | null = await this.connection.getAccountInfo(userBaseTokenAccount);
+      const userBaseTokenAccountInfo = await this.connection.getAccountInfo(userBaseTokenAccount);
       if (!userBaseTokenAccountInfo) {
         console.log('User base token account does not exist. Creating...');
         const createUserBaseTokenAccountIx = createAssociatedTokenAccountInstruction(
@@ -396,8 +395,8 @@ class BuyCoinsService {
       } else {
         console.log('User base token account exists.');
       }
-
-      const userQuoteTokenAccountInfo: AccountInfo<Buffer> | null = await this.connection.getAccountInfo(userQuoteTokenAccount);
+  
+      const userQuoteTokenAccountInfo = await this.connection.getAccountInfo(userQuoteTokenAccount);
       if (!userQuoteTokenAccountInfo) {
         console.log('User quote token account does not exist. Creating...');
         const createUserQuoteTokenAccountIx = createAssociatedTokenAccountInstruction(
@@ -410,9 +409,10 @@ class BuyCoinsService {
       } else {
         console.log('User quote token account exists.');
       }
-
-      // Создаём инструкции свопа, фиксируя количество выходящих токенов
+  
+      // Создаём инструкции свопа, фиксируя количество входящих токенов
       console.log('Creating swap instructions...');
+  
       const result = await Liquidity.makeSwapInstruction({
         poolKeys,
         userKeys: {
@@ -424,18 +424,47 @@ class BuyCoinsService {
         amountOut: amountOutUnits,
         fixedSide: 'out',
       });
-      
-      // Destructure instructions and signers from result.innerTransaction
+
+      console.log('Result of makeSwapInstruction:', result);
+      if (!result || !result.innerTransaction) {
+        throw new Error('Некорректный результат makeSwapInstruction.');
+      }
+
       const { instructions, signers: swapSigners } = result.innerTransaction;
-      console.log('Swap instructions created.');
-  
-      // Add instructions to the transaction
+      instructions.forEach((instruction, index) => {
+        try {
+          console.log(`Swap Instruction ${index + 1}:`);
+          console.log(`  Program ID: ${instruction.programId.toBase58()}`);
+      
+          // Проверяем валидность ключей и фильтруем некорректные ключи
+          const keys = instruction.keys.map(key => {
+            if (!key.pubkey || typeof key.pubkey.toBase58 !== 'function') {
+              console.error(`Invalid key detected at index ${index}. Skipping this instruction.`);
+              return null;
+            }
+            return {
+              pubkey: key.pubkey.toBase58(),
+              isSigner: key.isSigner,
+              isWritable: key.isWritable
+            };
+          }).filter(Boolean); // Удаляем null-значения
+      
+          if (keys.length === 0) {
+            console.error(`Instruction ${index + 1} has no valid keys. Skipping this instruction.`);
+            return;
+          }
+      
+          console.log(`  Keys: ${JSON.stringify(keys)}`);
+          console.log(`  Data: ${instruction.data.toString('hex')}`);
+        } catch (err) {
+          console.error(`Ошибка при логировании инструкции ${index + 1}:`, err);
+        }
+      });
+
       transaction.add(...instructions);
-      console.log('Swap instructions added to transaction.');
-  
-      // Collect any additional signers
       signers.push(...swapSigners);
   
+      console.log('Swap instructions added to transaction.');
       return { transaction, signers };
     } catch (error) {
       console.error('Error in createSwapTransaction:', error);

@@ -5,6 +5,7 @@ import dotenv from 'dotenv';
 import WalletManager from './services/wallet_manager'; // Импорт WalletManager
 import WalletTopUp from './services/wallet_top_up'; // Импорт WalletTopUp
 import WalletCollector from './services/wallet_collector'; // Импорт WalletCollector
+import BuyCoinsService from './services/buy_coins'; // Импорт BuyCoinsService
 import { Connection, clusterApiUrl } from '@solana/web3.js'; // Импорт необходимых компонентов Solana Web3.js
 
 // Загрузка переменных среды из файла .env
@@ -38,6 +39,7 @@ async function mainMenu(): Promise<void> {
 
       const walletTopUp = new WalletTopUp(connection, walletManager); // Передаем walletManager в WalletTopUp
       const walletCollector = new WalletCollector(connection, walletManager); // Создаем экземпляр WalletCollector
+      const buyCoinsService = new BuyCoinsService(connection, walletManager);
 
       await walletManager.displayMasterWallet(); // Используем экземпляр walletManager
 
@@ -63,7 +65,7 @@ async function mainMenu(): Promise<void> {
           await walletTopUp.topUpWallets();
           break;
         case MENU_OPTIONS.BUY_COINS:
-          await buyCoins();
+          await buyCoinsService.buyCoins();
           break;
         case MENU_OPTIONS.SELL_COINS:
           await sellCoins();
@@ -90,11 +92,6 @@ async function mainMenu(): Promise<void> {
   } catch (error) {
     console.error('Произошла ошибка в главном меню:', error);
   }
-}
-
-// Вспомогательные функции (асинхронные заглушки)
-async function buyCoins(): Promise<void> {
-  console.log('Функция покупки монет пока не реализована.');
 }
 
 async function sellCoins(): Promise<void> {
