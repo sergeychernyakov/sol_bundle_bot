@@ -5,7 +5,7 @@ import dotenv from 'dotenv';
 import WalletManager from './services/wallet_manager'; // Импорт WalletManager
 import WalletTopUp from './services/wallet_top_up'; // Импорт WalletTopUp
 import WalletCollector from './services/wallet_collector'; // Импорт WalletCollector
-import BuyCoinsService from './services/buy_coins'; // Импорт BuyCoinsService
+import BuyCoinsService from './services/buy_coins_service'; // Импорт BuyCoinsService
 import { Connection, clusterApiUrl } from '@solana/web3.js'; // Импорт необходимых компонентов Solana Web3.js
 
 // Загрузка переменных среды из файла .env
