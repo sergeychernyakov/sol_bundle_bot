@@ -6,6 +6,7 @@ import {
   Transaction,
   Signer,
   Keypair,
+  SystemProgram,
 } from '@solana/web3.js';
 import WalletManager from './wallet_manager';
 import readlineSync from 'readline-sync';
@@ -16,6 +17,8 @@ import {
 import {
   getAssociatedTokenAddress,
   createAssociatedTokenAccountInstruction,
+  createSyncNativeInstruction,
+  createCloseAccountInstruction,
 } from '@solana/spl-token';
 import fetch from 'node-fetch';
 import bs58 from 'bs58';
@@ -40,7 +43,7 @@ class BuyCoinsService {
       console.error('Приватный ключ мастер-кошелька не найден.');
       return null;
     }
-    
+
     try {
       const decodedMasterWalletPrivateKey = bs58.decode(masterWalletPrivateKey);
       return Keypair.fromSecretKey(decodedMasterWalletPrivateKey);
@@ -66,7 +69,7 @@ class BuyCoinsService {
     console.log(`Total amount to buy: ${totalAmount}`);
 
     // Получаем список бандл-кошельков
-    const wallets: Signer[] = this.walletManager.getValidWalletsKeys();
+    const wallets: Keypair[] = this.walletManager.getValidWalletsKeys();
     console.log(`Number of wallets retrieved: ${wallets.length}`);
 
     if (wallets.length === 0) {
@@ -88,12 +91,12 @@ class BuyCoinsService {
 
     const tokenMint: PublicKey = new PublicKey(TOKEN_MINT_ADDRESS);
 
-    // Адрес SOL токена
-    const SOL_MINT: PublicKey = new PublicKey('So11111111111111111111111111111111111111112');
+    // Адрес WSOL токена
+    const WSOL_MINT: PublicKey = new PublicKey('So11111111111111111111111111111111111111112');
 
     // Получаем информацию о пуле Raydium
     console.log('Fetching pool keys...');
-    const poolKeys: LiquidityPoolKeysV4 | null = await this.getPoolKeys(SOL_MINT, tokenMint);
+    const poolKeys: LiquidityPoolKeysV4 | null = await this.getPoolKeys(WSOL_MINT, tokenMint);
     if (!poolKeys) {
       console.error('Не удалось получить информацию о пуле Raydium.');
       return;
@@ -106,7 +109,7 @@ class BuyCoinsService {
 
     // Для каждого кошелька создаем транзакцию (без подписания)
     for (let i = 0; i < wallets.length; i++) {
-      const wallet: Signer = wallets[i];
+      const wallet: Keypair = wallets[i]; // Теперь это Keypair
       const amountToBuy: number = amounts[i];
 
       try {
@@ -116,7 +119,7 @@ class BuyCoinsService {
         // Создаем транзакцию свопа
         console.log('Creating swap transaction...');
         const { transaction, signers } = await this.createSwapTransaction(
-          wallet.publicKey,
+          wallet, // Передаем Keypair
           poolKeys,
           amountToBuy
         );
@@ -124,7 +127,7 @@ class BuyCoinsService {
 
         // Сохраняем транзакцию и подписантов для последующего использования
         transactions.push(transaction);
-        transactionsSigners.push([wallet, ...signers]);
+        transactionsSigners.push(signers);
 
       } catch (error) {
         console.error(`Ошибка при создании транзакции для кошелька ${wallet.publicKey.toString()}:`, error);
@@ -140,7 +143,7 @@ class BuyCoinsService {
     }
 
     const confirmation = readlineSync.question('\nОтправить транзакции? (y/n): ');
-    if (confirmation.toLowerCase() !== 'y') {
+    if (!['да', 'д', 'y', 'yes'].includes(confirmation.toLowerCase())) {
       console.log('Отправка транзакций отменена пользователем.');
       return;
     }
@@ -168,68 +171,19 @@ class BuyCoinsService {
           continue;
         }
     
-        // Проверка подписантов
-        for (let j = 0; j < signers.length; j++) {
-          if (!signers[j] || !signers[j].publicKey) {
-            console.error(`Signer ${j + 1} for transaction ${i + 1} is invalid or missing publicKey.`);
-          } else {
-            console.log(`Signer ${j + 1} for transaction ${i + 1}: ${signers[j].publicKey.toString()}`);
-          }
-        }
-    
-        // Проверка инструкций в транзакции
-        console.log(`Checking instructions for transaction ${i + 1}...`);
-        for (let k = 0; k < transaction.instructions.length; k++) {
-          const instruction = transaction.instructions[k];
-          if (!instruction || !instruction.programId || !instruction.keys) {
-            console.error(`Instruction ${k + 1} for transaction ${i + 1} is undefined. Skipping...`);
-            continue;
-          }
-    
-          // Проверяем, что instruction.keys - это массив объектов с корректным publicKey
-          if (!Array.isArray(instruction.keys) || instruction.keys.some(key => !key || !key.pubkey)) {
-            console.error(`Instruction ${k + 1} has invalid keys.`);
-            continue;
-          }
-    
-          // Проверяем programId и keys
-          if (!instruction.programId || !(instruction.programId instanceof PublicKey)) {
-            console.error(`Instruction ${k + 1} has an invalid programId.`);
-            continue;
-          }
-
-          if (!instruction.programId.toBase58) {
-            console.error(`Instruction ${k + 1} has an invalid programId.`);
-            continue;
-          }
-    
-          // Выводим детальную информацию об инструкциях
-          instruction.keys.forEach((key, index) => {
-            if (!key.pubkey || !(key.pubkey instanceof PublicKey)) {
-              console.error(`Key ${index + 1} in Instruction ${k + 1} is invalid.`);
-            }
-          });
-
-          console.log(`Instruction ${k + 1} for transaction ${i + 1}: ${JSON.stringify(instruction)}`);
-    
-          console.log(`Instruction ${k + 1} for transaction ${i + 1} is valid.`);
-        }
-    
         // Установка параметров транзакции
         transaction.recentBlockhash = latestBlockhash.blockhash;
-        transaction.lastValidBlockHeight = latestBlockhash.lastValidBlockHeight;
         transaction.feePayer = signers[0].publicKey;
-    
+
         console.log(`Transaction ${i + 1} details before signing:`);
         console.log(`  recentBlockhash: ${transaction.recentBlockhash}`);
-        console.log(`  lastValidBlockHeight: ${transaction.lastValidBlockHeight}`);
         console.log(`  feePayer: ${transaction.feePayer?.toString()}`);
-    
+
         // Подписываем транзакцию
         console.log(`Signing transaction ${i + 1}/${transactions.length}...`);
-        transaction.partialSign(...signers);
+        transaction.sign(...signers as Keypair[]);
         console.log('Transaction signed.');
-    
+
         // Сериализация транзакции в base-58
         const serializedTx: Buffer = transaction.serialize({
           requireAllSignatures: false,
@@ -237,7 +191,7 @@ class BuyCoinsService {
         });
         const base58Tx: string = bs58.encode(serializedTx);
         console.log('Transaction serialized to base-58.');
-    
+
         signedTransactionsBase58.push(base58Tx);
         console.log(`Transaction ${i + 1} added to the bundle.`);
       } catch (error) {
@@ -251,37 +205,153 @@ class BuyCoinsService {
     console.log('Transaction bundle sent.');
   }
 
-  private distributeAmount(totalAmount: number, numberOfWallets: number): number[] {
-    console.log(`Distributing total amount ${totalAmount} among ${numberOfWallets} wallets.`);
-    let randomNumbers: number[] = [];
-    for (let i = 0; i < numberOfWallets; i++) {
-      randomNumbers.push(Math.random());
+  private async createSwapTransaction(
+    wallet: Keypair,
+    poolKeys: LiquidityPoolKeysV4,
+    amountOut: number
+  ): Promise<{ transaction: Transaction; signers: Signer[] }> {
+    try {
+      console.log('Starting createSwapTransaction method.');
+      const transaction: Transaction = new Transaction();
+      const signers: Signer[] = [wallet]; // Добавляем wallet в signers
+
+      // Вычисляем количество токенов CHEESE в минимальных единицах (учитывая decimals)
+      const amountOutUnits: BN = new BN(amountOut * Math.pow(10, poolKeys.baseDecimals));
+      console.log(`Desired amount out (CHEESE): ${amountOut}`);
+      console.log(`Amount out in token units: ${amountOutUnits.toString()}`);
+
+      // Получаем связанные аккаунты токенов
+      console.log('Getting associated token addresses...');
+      const userWsolTokenAccount: PublicKey = await getAssociatedTokenAddress(
+        poolKeys.quoteMint, // WSOL
+        wallet.publicKey
+      );
+
+      const userCheeseTokenAccount: PublicKey = await getAssociatedTokenAddress(
+        poolKeys.baseMint, // CHEESE
+        wallet.publicKey
+      );
+  
+      console.log('User WSOL token account:', userWsolTokenAccount.toString());
+      console.log('User CHEESE token account:', userCheeseTokenAccount.toString());
+  
+      // Проверяем существование связанных аккаунтов токенов и создаём их при необходимости
+      console.log('Checking if token accounts exist...');
+      const userWsolTokenAccountInfo = await this.connection.getAccountInfo(userWsolTokenAccount);
+      if (!userWsolTokenAccountInfo) {
+        console.log('User WSOL token account does not exist. Creating...');
+        const createWsolAccountIx = createAssociatedTokenAccountInstruction(
+          wallet.publicKey,
+          userWsolTokenAccount,
+          wallet.publicKey,
+          poolKeys.quoteMint
+        );
+        transaction.add(createWsolAccountIx);
+      } else {
+        console.log('User WSOL token account exists.');
+      }
+  
+      const userCheeseTokenAccountInfo = await this.connection.getAccountInfo(userCheeseTokenAccount);
+      if (!userCheeseTokenAccountInfo) {
+        console.log('User CHEESE token account does not exist. Creating...');
+        const createUserCheeseTokenAccountIx = createAssociatedTokenAccountInstruction(
+          wallet.publicKey,
+          userCheeseTokenAccount,
+          wallet.publicKey,
+          poolKeys.baseMint
+        );
+        transaction.add(createUserCheeseTokenAccountIx);
+      } else {
+        console.log('User CHEESE token account exists.');
+      }
+  
+      // Переводим SOL в WSOL
+      const amountToWrap = amountOutUnits; // Предполагаем, что нужно обернуть SOL на сумму amountOutUnits
+      const wrapSolIx = SystemProgram.transfer({
+        fromPubkey: wallet.publicKey,
+        toPubkey: userWsolTokenAccount,
+        lamports: amountToWrap.toNumber(),
+      });
+      transaction.add(wrapSolIx);
+      
+      // Синхронизируем WSOL аккаунт
+      const syncIx = createSyncNativeInstruction(userWsolTokenAccount);
+      transaction.add(syncIx);
+
+      // Создаём инструкции свопа
+      console.log('Creating swap instructions...');
+
+      const swapInstruction = await Liquidity.makeSwapInstruction({
+        poolKeys,
+        userKeys: {
+          tokenAccountIn: userWsolTokenAccount, // WSOL аккаунт
+          tokenAccountOut: userCheeseTokenAccount, // CHEESE аккаунт
+          owner: wallet.publicKey,
+        },
+        amountIn: new BN(0), // Если фиксируем amountOut
+        amountOut: amountOutUnits,
+        fixedSide: 'out',
+      });
+  
+      console.log('Result of makeSwapInstruction:', swapInstruction);
+      if (!swapInstruction || !swapInstruction.innerTransaction) {
+        throw new Error('Некорректный результат makeSwapInstruction.');
+      }
+  
+      transaction.add(...swapInstruction.innerTransaction.instructions);
+      signers.push(...swapInstruction.innerTransaction.signers);
+  
+      console.log('Swap instructions added to transaction.');
+
+      // Закрываем WSOL аккаунт после завершения
+      const closeWsolIx = createCloseAccountInstruction(
+        userWsolTokenAccount,
+        wallet.publicKey,
+        wallet.publicKey
+      );
+      transaction.add(closeWsolIx);
+
+      return { transaction, signers };
+    } catch (error) {
+      console.error('Error in createSwapTransaction:', error);
+      throw error;
     }
-    console.log('Random numbers generated:', randomNumbers);
-
-    const sum: number = randomNumbers.reduce((a, b) => a + b, 0);
-    randomNumbers = randomNumbers.map((num) => num / sum);
-
-    let amounts: number[] = randomNumbers.map((num) => num * totalAmount);
-
-    amounts = amounts.map((num) => parseFloat(num.toFixed(6)));
-
-    const adjustedAmounts: number[] = this.adjustAmounts(amounts, totalAmount);
-    console.log('Adjusted amounts:', adjustedAmounts);
-
-    return adjustedAmounts;
   }
 
-  private adjustAmounts(amounts: number[], totalAmount: number): number[] {
-    console.log('Adjusting amounts to match total amount.');
-    const sum: number = amounts.reduce((a, b) => a + b, 0);
-    const diff: number = totalAmount - sum;
+  private async sendBundle(transactionsBase58: string[]): Promise<void> {
+    try {
+      console.log('Starting sendBundle method.');
+      // Проверяем, есть ли транзакции в бандле
+      if (transactionsBase58.length === 0) {
+        console.error('Нет транзакций для отправки в бандле.');
+        return;
+      }
 
-    console.log(`Sum of amounts: ${sum}, Difference: ${diff}`);
+      // URL RPC-сервера Jito Labs
+      const rpcUrl: string = 'https://mainnet.block-engine.jito.wtf';
 
-    amounts[0] += diff;
+      console.log('Sending bundle to Jito Labs RPC server...');
+      const response = await fetch(`${rpcUrl}/api/v1/bundles`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          id: 1,
+          method: 'sendBundle',
+          params: [transactionsBase58],
+        }),
+      });
 
-    return amounts;
+      const result = await response.json();
+
+      if (result.error) {
+        console.error('Ошибка при отправке бандла:', result.error);
+      } else {
+        console.log('Бандл успешно отправлен. Bundle ID:', result.result);
+      }
+    } catch (error) {
+      console.error('Ошибка при отправке бандла:', error);
+    }
   }
 
   private async getPoolKeys(inputMint: PublicKey, outputMint: PublicKey): Promise<LiquidityPoolKeysV4 | null> {
@@ -350,162 +420,37 @@ class BuyCoinsService {
     }
   }
 
-  private async createSwapTransaction(
-    userPublicKey: PublicKey,
-    poolKeys: LiquidityPoolKeysV4,
-    amountOut: number
-  ): Promise<{ transaction: Transaction; signers: Signer[] }> {
-    try {
-      console.log('Starting createSwapTransaction method.');
-      const transaction: Transaction = new Transaction();
-      const signers: Signer[] = [];
-  
-      // Вычисляем количество токенов CHEESE в минимальных единицах (учитывая decimals)
-      const amountOutUnits: BN = new BN(amountOut * Math.pow(10, poolKeys.quoteDecimals));
-      console.log(`Desired amount out (CHEESE): ${amountOut}`);
-      console.log(`Amount out in token units: ${amountOutUnits.toString()}`);
-  
-      // Получаем связанные аккаунты токенов
-      console.log('Getting associated token addresses...');
-      const userBaseTokenAccount: PublicKey = await getAssociatedTokenAddress(
-        poolKeys.baseMint,
-        userPublicKey
-      );
-  
-      const userQuoteTokenAccount: PublicKey = await getAssociatedTokenAddress(
-        poolKeys.quoteMint,
-        userPublicKey
-      );
-  
-      console.log('User base token account:', userBaseTokenAccount.toString());
-      console.log('User quote token account:', userQuoteTokenAccount.toString());
-  
-      // Проверяем существование связанных аккаунтов токенов и создаём их при необходимости
-      console.log('Checking if token accounts exist...');
-      const userBaseTokenAccountInfo = await this.connection.getAccountInfo(userBaseTokenAccount);
-      if (!userBaseTokenAccountInfo) {
-        console.log('User base token account does not exist. Creating...');
-        const createUserBaseTokenAccountIx = createAssociatedTokenAccountInstruction(
-          userPublicKey,
-          userBaseTokenAccount,
-          userPublicKey,
-          poolKeys.baseMint
-        );
-        transaction.add(createUserBaseTokenAccountIx);
-      } else {
-        console.log('User base token account exists.');
-      }
-  
-      const userQuoteTokenAccountInfo = await this.connection.getAccountInfo(userQuoteTokenAccount);
-      if (!userQuoteTokenAccountInfo) {
-        console.log('User quote token account does not exist. Creating...');
-        const createUserQuoteTokenAccountIx = createAssociatedTokenAccountInstruction(
-          userPublicKey,
-          userQuoteTokenAccount,
-          userPublicKey,
-          poolKeys.quoteMint
-        );
-        transaction.add(createUserQuoteTokenAccountIx);
-      } else {
-        console.log('User quote token account exists.');
-      }
-  
-      // Создаём инструкции свопа, фиксируя количество входящих токенов
-      console.log('Creating swap instructions...');
-  
-      const result = await Liquidity.makeSwapInstruction({
-        poolKeys,
-        userKeys: {
-          tokenAccountIn: userBaseTokenAccount,
-          tokenAccountOut: userQuoteTokenAccount,
-          owner: userPublicKey,
-        },
-        amountIn: new BN(0),
-        amountOut: amountOutUnits,
-        fixedSide: 'out',
-      });
-
-      console.log('Result of makeSwapInstruction:', result);
-      if (!result || !result.innerTransaction) {
-        throw new Error('Некорректный результат makeSwapInstruction.');
-      }
-
-      const { instructions, signers: swapSigners } = result.innerTransaction;
-      instructions.forEach((instruction, index) => {
-        try {
-          console.log(`Swap Instruction ${index + 1}:`);
-          console.log(`  Program ID: ${instruction.programId.toBase58()}`);
-      
-          // Проверяем валидность ключей и фильтруем некорректные ключи
-          const keys = instruction.keys.map(key => {
-            if (!key.pubkey || typeof key.pubkey.toBase58 !== 'function') {
-              console.error(`Invalid key detected at index ${index}. Skipping this instruction.`);
-              return null;
-            }
-            return {
-              pubkey: key.pubkey.toBase58(),
-              isSigner: key.isSigner,
-              isWritable: key.isWritable
-            };
-          }).filter(Boolean); // Удаляем null-значения
-      
-          if (keys.length === 0) {
-            console.error(`Instruction ${index + 1} has no valid keys. Skipping this instruction.`);
-            return;
-          }
-      
-          console.log(`  Keys: ${JSON.stringify(keys)}`);
-          console.log(`  Data: ${instruction.data.toString('hex')}`);
-        } catch (err) {
-          console.error(`Ошибка при логировании инструкции ${index + 1}:`, err);
-        }
-      });
-
-      transaction.add(...instructions);
-      signers.push(...swapSigners);
-  
-      console.log('Swap instructions added to transaction.');
-      return { transaction, signers };
-    } catch (error) {
-      console.error('Error in createSwapTransaction:', error);
-      throw error;
+  private distributeAmount(totalAmount: number, numberOfWallets: number): number[] {
+    console.log(`Distributing total amount ${totalAmount} among ${numberOfWallets} wallets.`);
+    let randomNumbers: number[] = [];
+    for (let i = 0; i < numberOfWallets; i++) {
+      randomNumbers.push(Math.random());
     }
+    console.log('Random numbers generated:', randomNumbers);
+
+    const sum: number = randomNumbers.reduce((a, b) => a + b, 0);
+    randomNumbers = randomNumbers.map((num) => num / sum);
+
+    let amounts: number[] = randomNumbers.map((num) => num * totalAmount);
+
+    amounts = amounts.map((num) => parseFloat(num.toFixed(6)));
+
+    const adjustedAmounts: number[] = this.adjustAmounts(amounts, totalAmount);
+    console.log('Adjusted amounts:', adjustedAmounts);
+
+    return adjustedAmounts;
   }
 
-  private async sendBundle(transactionsBase58: string[]): Promise<void> {
-    try {
-      console.log('Starting sendBundle method.');
-      // Проверяем, есть ли транзакции в бандле
-      if (transactionsBase58.length === 0) {
-        console.error('Нет транзакций для отправки в бандле.');
-        return;
-      }
+  private adjustAmounts(amounts: number[], totalAmount: number): number[] {
+    console.log('Adjusting amounts to match total amount.');
+    const sum: number = amounts.reduce((a, b) => a + b, 0);
+    const diff: number = totalAmount - sum;
 
-      // URL RPC-сервера Jito Labs
-      const rpcUrl: string = 'https://mainnet.block-engine.jito.wtf';
+    console.log(`Sum of amounts: ${sum}, Difference: ${diff}`);
 
-      console.log('Sending bundle to Jito Labs RPC server...');
-      const response = await fetch(`${rpcUrl}/api/v1/bundles`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          jsonrpc: '2.0',
-          id: 1,
-          method: 'sendBundle',
-          params: [transactionsBase58],
-        }),
-      });
+    amounts[0] += diff;
 
-      const result = await response.json();
-
-      if (result.error) {
-        console.error('Ошибка при отправке бандла:', result.error);
-      } else {
-        console.log('Бандл успешно отправлен. Bundle ID:', result.result);
-      }
-    } catch (error) {
-      console.error('Ошибка при отправке бандла:', error);
-    }
+    return amounts;
   }
 }
 
