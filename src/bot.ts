@@ -1,12 +1,12 @@
-// src/bot.ts
-
 import readlineSync from 'readline-sync';
 import dotenv from 'dotenv';
 import WalletManager from './services/wallet_manager'; // Импорт WalletManager
 import WalletTopUp from './services/wallet_top_up'; // Импорт WalletTopUp
 import WalletCollector from './services/wallet_collector'; // Импорт WalletCollector
-import BuyCoinsService from './services/buy_coins_service'; // Импорт BuyCoinsService
 import { Connection } from '@solana/web3.js'; // Импорт необходимых компонентов Solana Web3.js
+import { buyBundle } from "./services/jito_pool";
+import { createWalletSells } from './services/sell_tokens_service';
+import { buyAndSellTokens } from './services/buy_and_sell_tokens_service'
 
 // Загрузка переменных среды из файла .env
 dotenv.config();
@@ -50,7 +50,7 @@ async function mainMenu(): Promise<void> {
 
       const walletTopUp = new WalletTopUp(connection, walletManager); // Передаем walletManager в WalletTopUp
       const walletCollector = new WalletCollector(connection, walletManager); // Создаем экземпляр WalletCollector
-      const buyCoinsService = new BuyCoinsService(connection, walletManager);
+      // const buyCoinsService = new BuyCoinsService(connection, walletManager);
 
       await walletManager.displayMasterWallet(); // Используем экземпляр walletManager
 
@@ -76,13 +76,13 @@ async function mainMenu(): Promise<void> {
           await walletTopUp.topUpWallets();
           break;
         case MENU_OPTIONS.BUY_COINS:
-          await buyCoinsService.buyCoins();
+          await buyBundle();
           break;
         case MENU_OPTIONS.SELL_COINS:
-          await sellCoins();
+          await createWalletSells();
           break;
         case MENU_OPTIONS.BUY_AND_SELL_COINS:
-          await buyAndSellCoins();
+          await buyAndSellTokens();
           break;
         case MENU_OPTIONS.CLOSE_WALLETS:
           await walletCollector.closeWallets();
@@ -103,14 +103,6 @@ async function mainMenu(): Promise<void> {
   } catch (error) {
     console.error('Произошла ошибка в главном меню:', error);
   }
-}
-
-async function sellCoins(): Promise<void> {
-  console.log('Функция продажи монет пока не реализована.');
-}
-
-async function buyAndSellCoins(): Promise<void> {
-  console.log('Функция покупки и продажи монет пока не реализована.');
 }
 
 // Запуск главного меню

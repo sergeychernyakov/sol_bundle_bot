@@ -11,8 +11,8 @@
     "rootDir": "./src",
     "sourceMap": true,                // Enable source maps for easier debugging
     "declaration": true,              // Generate .d.ts declaration files
-    "noUnusedLocals": true,           // Report errors on unused locals
-    "noUnusedParameters": true,       // Report errors on unused parameters
+    "noUnusedLocals": false,           // Report errors on unused locals
+    "noUnusedParameters": false,       // Report errors on unused parameters
     "noImplicitAny": true,            // Disallow usage of variables with implicit 'any' type
     "strictNullChecks": true          // Enable strict null checking
   },
