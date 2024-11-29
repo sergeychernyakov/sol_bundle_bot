@@ -1,12 +1,12 @@
-import readlineSync from 'readline-sync';
 import dotenv from 'dotenv';
+import readlineSync from 'readline-sync';
 import WalletManager from './services/wallet_manager'; // Импорт WalletManager
 import WalletTopUp from './services/wallet_top_up'; // Импорт WalletTopUp
 import WalletCollector from './services/wallet_collector'; // Импорт WalletCollector
 import { Connection } from '@solana/web3.js'; // Импорт необходимых компонентов Solana Web3.js
-import { buy_tokens } from "./services/buy_tokens";
-import { sell_tokens_service } from './services/sell_tokens_service';
-import { buy_and_sell_tokens_service } from './services/buy_and_sell_tokens_service'
+import { BuyTokensService } from './services/buy_tokens_service';
+import { SellTokensService } from './services/sell_tokens_service';
+import { BuyAndSellTokensService } from './services/buy_and_sell_tokens_service'
 
 // Загрузка переменных среды из файла .env
 dotenv.config();
@@ -75,13 +75,40 @@ async function mainMenu(): Promise<void> {
           await walletTopUp.topUpWallets();
           break;
         case MENU_OPTIONS.BUY_COINS:
-          await buy_tokens();
+          const buyService = new BuyTokensService();
+          const buyTokenSymbol = process.env.BUY_TOKEN_SYMBOL;
+          const buyAmount = Number(process.env.BUY_TOKEN_AMOUNT);
+        
+          if (buyTokenSymbol === "SOL") {
+            await buyService.buyTokens(buyTokenSymbol, buyAmount);
+          } else {
+            throw new Error(`Unsupported token symbol for buying: ${buyTokenSymbol}`);
+          }
           break;
         case MENU_OPTIONS.SELL_COINS:
-          await sell_tokens_service();
+          const sellService = new SellTokensService();
+          const sellTokenSymbol = process.env.SELL_TOKEN_SYMBOL;
+          const sellAmount = Number(process.env.SELL_TOKEN_AMOUNT);
+        
+          if (sellTokenSymbol === "SOL") {
+            await sellService.sellTokens(sellTokenSymbol, sellAmount);
+          } else {
+            throw new Error(`Unsupported token symbol for selling: ${sellTokenSymbol}`);
+          }
           break;
         case MENU_OPTIONS.BUY_AND_SELL_COINS:
-          await buy_and_sell_tokens_service();
+          const buyAndSellTokenService = new BuyAndSellTokensService();
+          const buyTokenSymbolAndSell = process.env.BUY_TOKEN_SYMBOL as "SOL";
+          const sellTokenSymbolAndBuy = process.env.SELL_TOKEN_SYMBOL as "SOL";
+          const buyAmountForSell = Number(process.env.BUY_AMOUNT);
+          const sellAmountAndBuy = Number(process.env.SELL_AMOUNT);
+        
+          if (!buyTokenSymbolAndSell || !sellTokenSymbolAndBuy || !buyAmountForSell || !sellAmountAndBuy) {
+            console.error('Environment variables BUY_TOKEN_SYMBOL, SELL_TOKEN_SYMBOL, BUY_AMOUNT, and SELL_AMOUNT must be set.');
+            return;
+          }
+
+          await buyAndSellTokenService.buyAndSellTokens(buyTokenSymbolAndSell, buyAmountForSell, sellTokenSymbolAndBuy, sellAmountAndBuy);
           break;
         case MENU_OPTIONS.CLOSE_WALLETS:
           await walletCollector.closeWallets();

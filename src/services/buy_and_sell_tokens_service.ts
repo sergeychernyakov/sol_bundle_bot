@@ -1,14 +1,35 @@
-import { buy_tokens } from "./buy_tokens";
-import { sell_tokens_service } from "./sell_tokens_service";
+import { BuyTokensService } from './buy_tokens_service';
+import { SellTokensService } from './sell_tokens_service';
+import { TOKENS } from '../config/tokens_config';
 
-/**
- * Combined token buying and selling functionality
- */
-export async function buy_and_sell_tokens_service() {
-  try {
-    await buy_tokens();
-    await sell_tokens_service();
-  } catch (error) {
-    console.error(error);
+type TokenSymbol = keyof typeof TOKENS;
+
+export class BuyAndSellTokensService {
+  private buyService: BuyTokensService;
+  private sellService: SellTokensService;
+
+  constructor() {
+    this.buyService = new BuyTokensService();
+    this.sellService = new SellTokensService();
+  }
+
+  async buyAndSellTokens(
+    buyTokenAddress: string,
+    buyAmount: number,
+    sellTokenAddress: string,
+    sellAmount: number
+  ): Promise<void> {
+    const buyToken = this.validateToken(buyTokenAddress);
+    const sellToken = this.validateToken(sellTokenAddress);
+
+    await this.buyService.buyTokens(buyToken, buyAmount);
+    await this.sellService.sellTokens(sellToken, sellAmount);
+  }
+
+  private validateToken(token: string): TokenSymbol {
+    if (!(token in TOKENS)) {
+      throw new Error(`Invalid token: ${token}`);
+    }
+    return token as TokenSymbol;
   }
 }
