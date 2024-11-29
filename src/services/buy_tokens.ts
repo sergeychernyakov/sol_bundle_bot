@@ -191,26 +191,6 @@ export async function buyBundle() {
             lookupTableAccount,
         )
         bundledTxns.push(...txMainSwaps);
-        
-        // -------- step 4: send bundle --------
-        /*
-        // Simulate each transaction
-        for (const tx of bundledTxns) {
-            try {
-                const simulationResult = await connection.simulateTransaction(tx, { commitment: "processed" });
-                console.log(simulationResult);
-
-                if (simulationResult.value.err) {
-                    console.error("Simulation error for transaction:", simulationResult.value.err);
-                } else {
-                    console.log("Simulation success for transaction. Logs:");
-                    simulationResult.value.logs?.forEach(log => console.log(log));
-                }
-            } catch (error) {
-                console.error("Error during simulation:", error);
-            }
-        }
-        */
 
         await sendBundle(bundledTxns);
 

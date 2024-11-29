@@ -4,7 +4,7 @@ import WalletManager from './services/wallet_manager'; // Импорт WalletMan
 import WalletTopUp from './services/wallet_top_up'; // Импорт WalletTopUp
 import WalletCollector from './services/wallet_collector'; // Импорт WalletCollector
 import { Connection } from '@solana/web3.js'; // Импорт необходимых компонентов Solana Web3.js
-import { buyBundle } from "./services/jito_pool";
+import { buyBundle } from "./services/buy_tokens";
 import { createWalletSells } from './services/sell_tokens_service';
 import { buyAndSellTokens } from './services/buy_and_sell_tokens_service'
 
@@ -50,7 +50,6 @@ async function mainMenu(): Promise<void> {
 
       const walletTopUp = new WalletTopUp(connection, walletManager); // Передаем walletManager в WalletTopUp
       const walletCollector = new WalletCollector(connection, walletManager); // Создаем экземпляр WalletCollector
-      // const buyCoinsService = new BuyCoinsService(connection, walletManager);
 
       await walletManager.displayMasterWallet(); // Используем экземпляр walletManager
 

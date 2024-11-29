@@ -1,4 +1,4 @@
-import { buyBundle } from "./jito_pool";
+import { buyBundle } from "./buy_tokens";
 import { createWalletSells } from "./sell_tokens_service";
 
 /**

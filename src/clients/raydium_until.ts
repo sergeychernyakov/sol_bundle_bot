@@ -1,8 +1,4 @@
 import {
-    ASSOCIATED_TOKEN_PROGRAM_ID,
-    buildSimpleTransaction,
-    findProgramAddress,
-    InnerSimpleV0Transaction,
     Liquidity,
     SPL_ACCOUNT_LAYOUT,
     Token,
@@ -20,12 +16,11 @@ import {
   } from '@solana/web3.js';
   
   import {
-    addLookupTableInfo,
     feeId,
     makeTxVersion,
     PROGRAMIDS, 
   } from './constants';
-  import { connection, wallet, walletconn } from '../config';
+  import { connection, walletconn } from '../config';
   import { BN } from '@project-serum/anchor';
    
   type LiquidityPairTargetInfo = {
@@ -82,33 +77,6 @@ import {
   
   }
   
-  export async function buildAndSendTx(innerSimpleV0Transaction: InnerSimpleV0Transaction[],options?: SendOptions) {
-    const willSendTx = await buildSimpleTransaction({
-      connection,
-      makeTxVersion,
-      payer: wallet.publicKey,
-      innerTransactions: innerSimpleV0Transaction,
-      addLookupTableInfo: addLookupTableInfo,
-    })
-  
-    
-   
-    return await sendTx(connection, walletconn.payer, willSendTx, options)
-  }
-  
-  export function getATAAddress(programId: PublicKey, owner: PublicKey, mint: PublicKey) {
-    const { publicKey, nonce } = findProgramAddress(
-      [owner.toBuffer(), programId.toBuffer(), mint.toBuffer()],
-      new PublicKey("ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL")
-    );
-    return { publicKey, nonce };
-  }
-  
-  export async function sleepTime(ms: number) {
-    console.log((new Date()).toLocaleString(), 'sleepTime', ms)
-    return new Promise(resolve => setTimeout(resolve, ms))
-  }
-  
   export async function ammCreatePool(input: TestTxInputInfo) {
     // -------- step 1: make instructions --------
     const initPoolInstructionResponse = await Liquidity.makeCreatePoolV4InstructionV2Simple({
@@ -136,25 +104,4 @@ import {
     })
   
     return { txs: initPoolInstructionResponse }
-  }
-  
-  
-  export function calcMarketStartPrice(input: CalcStartPrice) {
-    return (input.addBaseAmount.toNumber() / 10 ** 6 )/ (input.addQuoteAmount.toNumber() / 10 ** 9)
-  }
-  
-  
-  export async function findAssociatedTokenAddress(
-    walletAddress: PublicKey,
-    tokenMintAddress: PublicKey
-  ) {
-    const { publicKey } = await findProgramAddress(
-      [
-        walletAddress.toBuffer(),
-        TOKEN_PROGRAM_ID.toBuffer(),
-        tokenMintAddress.toBuffer(),
-      ],
-      ASSOCIATED_TOKEN_PROGRAM_ID
-    )
-    return publicKey
   }

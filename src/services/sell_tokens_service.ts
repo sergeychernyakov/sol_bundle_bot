@@ -9,7 +9,7 @@ import { IPoolKeys } from '../clients/interfaces';
 import { derivePoolKeys } from "../clients/pool_keys_reassigned"; 
 import path from 'path';
 import fs from 'fs';
-import { sendBundle } from './jito_pool';
+import { sendBundle } from './buy_tokens';
 
 const prompt = promptSync();
 const keyInfoPath = path.join(__dirname, 'keyInfo.json');

@@ -123,7 +123,7 @@ import { connection } from '../config';
   
   lookupTableProvider.getLookupTable(
     // custom lookup tables
-    new PublicKey('Gr8rXuDwE2Vd2F5tifkPyMaUR67636YgrZEjkJf9RR9V'),
+    new PublicKey('') //NEED PUBLIC KEY,
   );
   
   export { lookupTableProvider };

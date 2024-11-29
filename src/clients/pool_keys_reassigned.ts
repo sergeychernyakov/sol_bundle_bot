@@ -4,7 +4,7 @@ import { AccountInfo, PublicKey } from '@solana/web3.js';
 import * as structs from './structs';
 import { RayLiqPoolv4, connection, wallet } from '../config';
 
-const openbookProgram = new PublicKey('srmqPvymJeFKQ4zGQed1GFppgkRHL9kaELCbyksJtPX');
+const openbookProgram = new PublicKey('') //NEED PUBLIC KEY;
 
 async function getMarketInfo(marketId: PublicKey) {
   let reqs = 0;
@@ -83,7 +83,7 @@ export async function derivePoolKeys(marketId: PublicKey) {
 
   // get/derive all the pool keys
   const poolKeys = {
-    keg: new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'),
+    keg: new PublicKey(''), //NEED PUBLIC KEY
     version: 4,
     marketVersion: 3,
     programId: RayLiqPoolv4,
@@ -139,7 +139,7 @@ export async function derivePoolKeys(marketId: PublicKey) {
       [RayLiqPoolv4.toBuffer(), marketId.toBuffer(), Buffer.from('pc_vault_associated_seed', 'utf-8')],
       RayLiqPoolv4
     )[0],
-    lookupTableAccount: new PublicKey('11111111111111111111111111111111')
+    lookupTableAccount: new PublicKey('') //NEED PUBLIC KEY
   };
 
   return poolKeys;

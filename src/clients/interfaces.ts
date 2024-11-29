@@ -1,5 +1,4 @@
 import { PublicKey } from '@solana/web3.js';
-import BN from 'bn.js';
 
 export interface IPoolKeys {
   keg?: PublicKey;
@@ -32,11 +31,4 @@ export interface IPoolKeys {
   openOrders?: any;
   quoteVault?: any;
   lookupTableAccount?: PublicKey;
-}
-
-export interface ISwpBaseIn {
-  swapBaseIn?: {
-    amountIn?: BN;
-    minimumAmountOut?: BN;
-  };
 }
