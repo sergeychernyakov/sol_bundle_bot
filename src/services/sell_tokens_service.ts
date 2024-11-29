@@ -21,7 +21,7 @@ function chunkArray<T>(array: T[], size: number): T[][] {
 }
 
 
-export async function createWalletSells() {
+export async function sell_tokens_service() {
     const bundledTxns: VersionedTransaction[] = [];
     const keypairs: Keypair[] = loadKeypairs();
 

@@ -4,9 +4,9 @@ import WalletManager from './services/wallet_manager'; // Импорт WalletMan
 import WalletTopUp from './services/wallet_top_up'; // Импорт WalletTopUp
 import WalletCollector from './services/wallet_collector'; // Импорт WalletCollector
 import { Connection } from '@solana/web3.js'; // Импорт необходимых компонентов Solana Web3.js
-import { buyBundle } from "./services/buy_tokens";
-import { createWalletSells } from './services/sell_tokens_service';
-import { buyAndSellTokens } from './services/buy_and_sell_tokens_service'
+import { buy_tokens } from "./services/buy_tokens";
+import { sell_tokens_service } from './services/sell_tokens_service';
+import { buy_and_sell_tokens_service } from './services/buy_and_sell_tokens_service'
 
 // Загрузка переменных среды из файла .env
 dotenv.config();
@@ -75,13 +75,13 @@ async function mainMenu(): Promise<void> {
           await walletTopUp.topUpWallets();
           break;
         case MENU_OPTIONS.BUY_COINS:
-          await buyBundle();
+          await buy_tokens();
           break;
         case MENU_OPTIONS.SELL_COINS:
-          await createWalletSells();
+          await sell_tokens_service();
           break;
         case MENU_OPTIONS.BUY_AND_SELL_COINS:
-          await buyAndSellTokens();
+          await buy_and_sell_tokens_service();
           break;
         case MENU_OPTIONS.CLOSE_WALLETS:
           await walletCollector.closeWallets();

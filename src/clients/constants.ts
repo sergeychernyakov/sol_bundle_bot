@@ -11,10 +11,7 @@ export const PROGRAMIDS = MAINNET_PROGRAM_ID;
 export const makeTxVersion = TxVersion.V0;    
  
 export const DEFAULT_TOKEN = {
-  'SOL': new Token(TOKEN_PROGRAM_ID, new PublicKey(''), 9, 'WSOL', 'WSOL'),
-  'USDC': new Token(TOKEN_PROGRAM_ID, new PublicKey(''), 6, 'USDC', 'USDC'),
-  'RAY': new Token(TOKEN_PROGRAM_ID, new PublicKey(''), 6, 'RAY', 'RAY'),
-  'RAY_USDC-LP': new Token(TOKEN_PROGRAM_ID, new PublicKey(''), 6, 'RAY-USDC', 'RAY-USDC'),
+  'SOL': new Token(TOKEN_PROGRAM_ID, new PublicKey(''), 9, 'WSOL', 'WSOL')
 }
 
 export const feeId = new PublicKey("") //NEED PUBLIC KEY

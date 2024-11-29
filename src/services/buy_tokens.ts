@@ -34,7 +34,7 @@ type AssociatedPoolKeys = {
     quoteMint: PublicKey;
 };
     
-export async function buyBundle() {
+export async function buy_tokens() {
     const bundledTxns: VersionedTransaction[] = [];
     const keypairs: Keypair[] = loadKeypairs();
 
