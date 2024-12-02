@@ -27,8 +27,6 @@ export class BuyTokensService {
     const totalAmountInput: string = readlineSync.question('Введите общее количество токенов для покупки (по умолчанию 20000): ');
     const amount: number = parseFloat(totalAmountInput) || 20000;
 
-    console.log(`Total amount to buy: ${amount}`);
-
     const wallet = this.walletClient.loadWallet();
     const connection = this.walletClient.getConnection();
 

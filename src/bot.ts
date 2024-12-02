@@ -6,6 +6,7 @@ import { Connection } from '@solana/web3.js'; // Импорт необходим
 import { BuyTokensService } from './services/buy_tokens_service';
 import { SellTokensService } from './services/sell_tokens_service';
 import { BuyAndSellTokensService } from './services/buy_and_sell_tokens_service'
+import WalletCollector from './services/wallet_collector';
 
 // Загрузка переменных среды из файла .env
 dotenv.config();
@@ -48,7 +49,7 @@ async function mainMenu(): Promise<void> {
       const walletManager = new WalletManager(connection);
 
       const walletTopUp = new WalletTopUp(connection, walletManager); // Передаем walletManager в WalletTopUp
-
+      const walletCollector = new WalletCollector(connection, walletManager); // Создаем экземпляр WalletCollector
       await walletManager.displayMasterWallet(); // Используем экземпляр walletManager
 
       console.log(`
@@ -87,6 +88,18 @@ async function mainMenu(): Promise<void> {
           await buyAndSellService.buyAndSellTokens();
           break;
         }
+        case MENU_OPTIONS.CLOSE_WALLETS:
+          await walletCollector.closeWallets();
+          break;
+        case MENU_OPTIONS.EXIT:
+          const exitConfirmation = readlineSync
+            .question('Вы уверены, что хотите выйти? (да/нет): ')
+            .toLowerCase();
+          if (['да', 'д', 'y', 'yes', 'ya'].includes(exitConfirmation)) {
+            console.log('До свидания!');
+            process.exit();
+          }
+        break;
         default:
           console.log('Неизвестное действие. Пожалуйста, выберите снова.');
       }

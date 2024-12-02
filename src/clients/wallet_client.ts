@@ -16,19 +16,19 @@ export class WalletClient {
         this.connection = new Connection(rpcUrl, 'confirmed');
     }
 
-    // Method for obtaining the compound
+    // Метод получения соединения
     getConnection(): Connection {
         return this.connection;
     }
 
-  // Logic of creating a wallet
+  // Логика создания кошелька
   createWallet(): Keypair {
     const wallet = Keypair.generate();
     console.log('Wallet created:', wallet.publicKey.toBase58());
     return wallet;
   }
 
-  // Logic of getting balance
+  // Логика получения баланса
   async getBalance(walletAddress: string): Promise<number> {
     const publicKey = new PublicKey(walletAddress);
     const balance = await this.connection.getBalance(publicKey);
@@ -36,7 +36,7 @@ export class WalletClient {
     return balance / LAMPORTS_PER_SOL;
   }
 
-  // Loading a wallet from a file
+  // Загрузка кошелька из файла
   loadWallet(): Keypair {
     const secretKeyPath = process.env.WALLET_SECRET_KEY_PATH;
     if (!secretKeyPath) {
