@@ -13,5 +13,6 @@ export class BuyAndSellTokensService {
   async buyAndSellTokens(): Promise<void> {
     await this.buyService.buyTokens();
     await this.sellService.sellTokens();
+    console.log('Completed buy and sell operations.');
   }
 }
