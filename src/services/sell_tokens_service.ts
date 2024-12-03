@@ -1,5 +1,4 @@
 import {
-  Connection,
   PublicKey,
   Transaction,
   TransactionInstruction,
@@ -12,8 +11,6 @@ import * as dotenv from 'dotenv';
 dotenv.config();
 
 const TOKEN_MINT_ADDRESS = process.env.TOKEN_MINT_ADDRESS!;
-const QUICK_NODE_API_KEY = process.env.QUICK_NODE_API_KEY!;
-const connection = new Connection(`https://solana-mainnet.quiknode.pro/${QUICK_NODE_API_KEY}`, 'confirmed');
 
 export class SellTokensService {
   async sellTokens(): Promise<void> {
@@ -32,7 +29,7 @@ export class SellTokensService {
         })
       );
 
-      await bundleTransaction(connection, transaction, [wallet]);
+      await bundleTransaction([transaction], [wallet]);
       console.log(`Sold tokens with wallet: ${wallet.publicKey.toString()}`);
     }
   }
