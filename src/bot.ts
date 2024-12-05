@@ -1,12 +1,12 @@
-// src/bot.ts
-
-import readlineSync from 'readline-sync';
 import dotenv from 'dotenv';
+import readlineSync from 'readline-sync';
 import WalletManager from './services/wallet_manager'; // Импорт WalletManager
 import WalletTopUp from './services/wallet_top_up'; // Импорт WalletTopUp
-import WalletCollector from './services/wallet_collector'; // Импорт WalletCollector
-import BuyCoinsService from './services/buy_coins_service'; // Импорт BuyCoinsService
 import { Connection } from '@solana/web3.js'; // Импорт необходимых компонентов Solana Web3.js
+import { BuyTokensService } from './services/buy_tokens_service';
+import { SellTokensService } from './services/sell_tokens_service';
+import { BuyAndSellTokensService } from './services/buy_and_sell_tokens_service'
+import WalletCollector from './services/wallet_collector';
 
 // Загрузка переменных среды из файла .env
 dotenv.config();
@@ -50,8 +50,6 @@ async function mainMenu(): Promise<void> {
 
       const walletTopUp = new WalletTopUp(connection, walletManager); // Передаем walletManager в WalletTopUp
       const walletCollector = new WalletCollector(connection, walletManager); // Создаем экземпляр WalletCollector
-      const buyCoinsService = new BuyCoinsService(connection, walletManager);
-
       await walletManager.displayMasterWallet(); // Используем экземпляр walletManager
 
       console.log(`
@@ -75,15 +73,21 @@ async function mainMenu(): Promise<void> {
         case MENU_OPTIONS.TOP_UP_WALLETS:
           await walletTopUp.topUpWallets();
           break;
-        case MENU_OPTIONS.BUY_COINS:
-          await buyCoinsService.buyCoins();
+        case MENU_OPTIONS.BUY_COINS: {
+          const buyService = new BuyTokensService();
+          await buyService.buyTokens();
           break;
-        case MENU_OPTIONS.SELL_COINS:
-          await sellCoins();
+        }
+        case MENU_OPTIONS.SELL_COINS: {
+          const sellService = new SellTokensService();
+          await sellService.sellTokens();
           break;
-        case MENU_OPTIONS.BUY_AND_SELL_COINS:
-          await buyAndSellCoins();
+        }
+        case MENU_OPTIONS.BUY_AND_SELL_COINS: {
+          const buyAndSellService = new BuyAndSellTokensService();
+          await buyAndSellService.buyAndSellTokens();
           break;
+        }
         case MENU_OPTIONS.CLOSE_WALLETS:
           await walletCollector.closeWallets();
           break;
@@ -95,7 +99,7 @@ async function mainMenu(): Promise<void> {
             console.log('До свидания!');
             process.exit();
           }
-          break;
+        break;
         default:
           console.log('Неизвестное действие. Пожалуйста, выберите снова.');
       }
@@ -103,14 +107,6 @@ async function mainMenu(): Promise<void> {
   } catch (error) {
     console.error('Произошла ошибка в главном меню:', error);
   }
-}
-
-async function sellCoins(): Promise<void> {
-  console.log('Функция продажи монет пока не реализована.');
-}
-
-async function buyAndSellCoins(): Promise<void> {
-  console.log('Функция покупки и продажи монет пока не реализована.');
 }
 
 // Запуск главного меню
