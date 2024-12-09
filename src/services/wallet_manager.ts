@@ -1,5 +1,3 @@
-// src/services/wallet_manager.ts
-
 import { Metaplex } from '@metaplex-foundation/js';
 import { Keypair, Connection, PublicKey, LAMPORTS_PER_SOL } from '@solana/web3.js';
 import fs from 'fs/promises';
