@@ -1,24 +1,57 @@
-import { Transaction } from '@solana/web3.js';
+import { Transaction, Connection, Keypair, SystemProgram } from '@solana/web3.js';
 import bs58 from 'bs58';
+import * as dotenv from 'dotenv';
+
+dotenv.config();
+
+const connection = new Connection('https://api.mainnet-beta.solana.com');
+const bundleWalletsPrivateKeys = process.env.BUNDLE_WALLET_PRIVATE_KEYS!.split(',');
+const firstWalletKeypair = Keypair.fromSecretKey(bs58.decode(bundleWalletsPrivateKeys[0].trim()));
+const tipAccountPublicKey = firstWalletKeypair.publicKey;
 
 export async function bundleTransaction(
   transactions: Transaction[],
-  signers: any[]
+  signers: Keypair[]
 ): Promise<void> {
   try {
     console.log('Формирование бандла транзакций...');
 
-    // Подписываем все транзакции
-    for (const tx of transactions) {
-      await tx.sign(...signers);
-    }
+    const recentBlockhash = (await connection.getLatestBlockhash('confirmed')).blockhash;
 
-    // Конвертация в base58 с использованием bs58
+    transactions.forEach((tx) => {
+      tx.recentBlockhash = recentBlockhash;
+      tx.feePayer = signers[0].publicKey;
+
+      // Добавляем инструкцию для перевода "подсказки" (tip)
+      tx.add(
+        SystemProgram.transfer({
+          fromPubkey: signers[0].publicKey,
+          toPubkey: tipAccountPublicKey,
+          lamports: 1000, // Минимальный "tip"
+        })
+      );
+    });
+
+    const lockTransaction = new Transaction().add(
+      SystemProgram.transfer({
+        fromPubkey: signers[0].publicKey,
+        toPubkey: tipAccountPublicKey,
+        lamports: 0, // Транзакция с 0 lamports только для write-lock
+      })
+    );
+
+    lockTransaction.recentBlockhash = recentBlockhash;
+    lockTransaction.feePayer = signers[0].publicKey;
+    lockTransaction.sign(...signers);
+
+    // Добавляем lockTransaction в начало списка
+    const allTransactions = [lockTransaction, ...transactions];
+
+    allTransactions.forEach((tx) => tx.sign(...signers));
     const transactionsBase58 = transactions.map((tx) =>
       bs58.encode(tx.serialize())
     );
 
-    // Отправка бандла
     await sendBundle(transactionsBase58);
   } catch (error) {
     console.error('Ошибка при отправке бандла транзакций:', error);
