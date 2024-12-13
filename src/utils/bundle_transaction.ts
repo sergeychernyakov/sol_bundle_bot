@@ -1,13 +1,14 @@
-import { Transaction, Connection, Keypair, SystemProgram } from '@solana/web3.js';
+import { Transaction, Connection, Keypair, SystemProgram, TransactionInstruction } from '@solana/web3.js';
 import bs58 from 'bs58';
 import * as dotenv from 'dotenv';
 
 dotenv.config();
 
 const connection = new Connection('https://api.mainnet-beta.solana.com');
-const bundleWalletsPrivateKeys = process.env.BUNDLE_WALLET_PRIVATE_KEYS!.split(',');
-const firstWalletKeypair = Keypair.fromSecretKey(bs58.decode(bundleWalletsPrivateKeys[0].trim()));
-const tipAccountPublicKey = firstWalletKeypair.publicKey;
+
+const masterWalletPrivateKey = bs58.decode(process.env.MASTER_WALLET_PRIVATE_KEY!.trim());
+const masterWalletKeypair = Keypair.fromSecretKey(masterWalletPrivateKey);
+const masterWalletPublicKey = masterWalletKeypair.publicKey;
 
 export async function bundleTransaction(
   transactions: Transaction[],
@@ -21,33 +22,30 @@ export async function bundleTransaction(
     transactions.forEach((tx) => {
       tx.recentBlockhash = recentBlockhash;
       tx.feePayer = signers[0].publicKey;
-
-      // Добавляем инструкцию для перевода "подсказки" (tip)
+    
+      // Добавление фиктивной инструкции для write lock на masterWalletPublicKey
+      const fakeInstruction = new TransactionInstruction({
+        keys: [{ pubkey: masterWalletPublicKey, isSigner: false, isWritable: true }],
+        programId: SystemProgram.programId,
+        data: Buffer.from([]), // Пустой Buffer
+      });
+    
+      // Инструкция для перевода tip (0.000001 SOL)
+      tx.add(fakeInstruction); // Сначала фиктивная инструкция
       tx.add(
         SystemProgram.transfer({
           fromPubkey: signers[0].publicKey,
-          toPubkey: tipAccountPublicKey,
+          toPubkey: masterWalletPublicKey,
           lamports: 1000, // Минимальный "tip"
         })
       );
     });
+    
 
-    const lockTransaction = new Transaction().add(
-      SystemProgram.transfer({
-        fromPubkey: signers[0].publicKey,
-        toPubkey: tipAccountPublicKey,
-        lamports: 0, // Транзакция с 0 lamports только для write-lock
-      })
-    );
+    // Подписываем транзакции
+    transactions.forEach((tx) => tx.sign(...signers));
 
-    lockTransaction.recentBlockhash = recentBlockhash;
-    lockTransaction.feePayer = signers[0].publicKey;
-    lockTransaction.sign(...signers);
-
-    // Добавляем lockTransaction в начало списка
-    const allTransactions = [lockTransaction, ...transactions];
-
-    allTransactions.forEach((tx) => tx.sign(...signers));
+    // Конвертация в base58
     const transactionsBase58 = transactions.map((tx) =>
       bs58.encode(tx.serialize())
     );

@@ -7,6 +7,7 @@ import { BuyTokensService } from './services/buy_tokens_service';
 import { SellTokensService } from './services/sell_tokens_service';
 import { BuyAndSellTokensService } from './services/buy_and_sell_tokens_service'
 import WalletCollector from './services/wallet_collector';
+import { BuyTokensWithoutBundle } from './services/buy_tokens_without_bundle_service';
 
 // Загрузка переменных среды из файла .env
 dotenv.config();
@@ -16,10 +17,11 @@ const MENU_OPTIONS = {
   MANAGE_WALLETS: 1,
   TOP_UP_WALLETS: 2,
   BUY_COINS: 3,
-  SELL_COINS: 4,
-  BUY_AND_SELL_COINS: 5,
-  CLOSE_WALLETS: 6,
-  EXIT: 7,
+  BUY_COINS_WITHOUT_BUNDLE: 4,
+  SELL_COINS: 5,
+  BUY_AND_SELL_COINS: 6,
+  CLOSE_WALLETS: 7,
+  EXIT: 8,
 };
 
 // Основное меню
@@ -58,6 +60,7 @@ async function mainMenu(): Promise<void> {
       ${MENU_OPTIONS.MANAGE_WALLETS}. Создать кошельки
       ${MENU_OPTIONS.TOP_UP_WALLETS}. Пополнить кошельки
       ${MENU_OPTIONS.BUY_COINS}. Купить монеты (бандл)
+      ${MENU_OPTIONS.BUY_COINS_WITHOUT_BUNDLE}. Купить монеты
       ${MENU_OPTIONS.SELL_COINS}. Продать монеты (бандл)
       ${MENU_OPTIONS.BUY_AND_SELL_COINS}. Купить и продать монеты (бандл)
       ${MENU_OPTIONS.CLOSE_WALLETS}. Собрать SOL с кошельков
@@ -76,6 +79,11 @@ async function mainMenu(): Promise<void> {
         case MENU_OPTIONS.BUY_COINS: {
           const buyService = new BuyTokensService();
           await buyService.buyTokens();
+          break;
+        }
+        case MENU_OPTIONS.BUY_COINS_WITHOUT_BUNDLE: {
+          const buyTokensWithoutBundle = new BuyTokensWithoutBundle();
+          await buyTokensWithoutBundle.swapSolToToken();
           break;
         }
         case MENU_OPTIONS.SELL_COINS: {

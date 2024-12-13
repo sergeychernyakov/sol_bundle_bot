@@ -6,6 +6,7 @@ import {
 import { bundleTransaction } from '../utils/bundle_transaction';
 import { getWallets } from '../clients/wallet_client';
 import readlineSync from 'readline-sync';
+import { distributeAmount } from '../utils/amount_helper'
 import * as dotenv from 'dotenv';
 
 
@@ -21,7 +22,7 @@ export class BuyTokensService {
     const totalAmountInput: string = readlineSync.question('Введите общее количество токенов для покупки (по умолчанию 20000): ');
     const amount: number = parseFloat(totalAmountInput) || 20000;
 
-    const amounts: number[] = this.distributeAmount(amount, wallets.length);
+    const amounts: number[] = distributeAmount(amount, wallets.length);
     console.log('Amounts distributed among wallets:', amounts);
 
     // Вывод списка транзакций и запрос подтверждения
@@ -50,38 +51,5 @@ export class BuyTokensService {
       await bundleTransaction([transaction], [wallet]);
       console.log(`Purchased tokens with wallet: ${wallet.publicKey.toString()}`);
     }
-  }
-
-  private distributeAmount(totalAmount: number, numberOfWallets: number): number[] {
-    console.log(`Distributing total amount ${totalAmount} among ${numberOfWallets} wallets.`);
-    let randomNumbers: number[] = [];
-    for (let i = 0; i < numberOfWallets; i++) {
-      randomNumbers.push(Math.random());
-    }
-    console.log('Random numbers generated:', randomNumbers);
-
-    const sum: number = randomNumbers.reduce((a, b) => a + b, 0);
-    randomNumbers = randomNumbers.map((num) => num / sum);
-
-    let amounts: number[] = randomNumbers.map((num) => num * totalAmount);
-
-    amounts = amounts.map((num) => parseFloat(num.toFixed(6)));
-
-    const adjustedAmounts: number[] = this.adjustAmounts(amounts, totalAmount);
-    console.log('Adjusted amounts:', adjustedAmounts);
-
-    return adjustedAmounts;
-  }
-
-  private adjustAmounts(amounts: number[], totalAmount: number): number[] {
-    console.log('Adjusting amounts to match total amount.');
-    const sum: number = amounts.reduce((a, b) => a + b, 0);
-    const diff: number = totalAmount - sum;
-
-    console.log(`Sum of amounts: ${sum}, Difference: ${diff}`);
-
-    amounts[0] += diff;
-
-    return amounts;
   }
 }
